@@ -1,0 +1,72 @@
+# A campaign that passes preflight. Synthetic data; example.com is RFC 2606 reserved.
+#
+# Notes on why this one is clean:
+#   * America/Phoenix observes no daylight saving, so the schedule is stable
+#     year-round and schedule.dst_transition has nothing to report.
+#   * No start/end dates, so the date rules are NOT_APPLICABLE rather than
+#     drifting into "starts in the past" as time passes.
+version: 1
+
+campaign:
+  id: clean-q4-expansion
+  name: Q4 Expansion Outbound
+  status: draft
+  timezone: America/Phoenix
+  daily_limit: 80
+  stop_on_reply: true
+  stop_on_auto_reply: true
+
+  schedule:
+    timezone: America/Phoenix
+    windows:
+      - name: Weekday business hours
+        start: "09:00"
+        end: "16:30"
+        days: [mon, tue, wed, thu, fri]
+
+  senders:
+    - email: dana@example.com
+      name: Dana Reyes
+      enabled: true
+      status: active
+      health_score: 94
+      daily_limit: 60
+      warmup_status: active
+      setup_pending: false
+    - email: mia@example.com
+      name: Mia Chandra
+      enabled: true
+      status: active
+      health_score: 91
+      daily_limit: 60
+      warmup_status: active
+      setup_pending: false
+
+  steps:
+    - type: email
+      delay: 0
+      delay_unit: days
+      subject: "{{first_name}}, quick question on {{company_name}}"
+      body: |
+        Hi {{first_name}},
+
+        {{personalization}}
+
+        We help operations teams shorten their monthly close. Worth fifteen minutes?
+
+        Dana
+
+        Not relevant? Reply "unsubscribe" and I will remove you.
+    - type: email
+      delay: 4
+      delay_unit: days
+      subject: ""
+      body: |
+        Hi {{first_name}},
+
+        Following up once. If close timelines are not a priority at
+        {{company_name}} this quarter, I will close the loop.
+
+        Dana
+
+        Reply "unsubscribe" to opt out.

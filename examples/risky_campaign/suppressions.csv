@@ -1,0 +1,3 @@
+value,is_domain,reason
+marcus.reyes@stonebridge.example.com,false,unsubscribed
+ironvale.example.com,true,domain opt-out

@@ -1,0 +1,106 @@
+{
+  "_note": "Synthetic evidence for the Campaign Preflight demo. Every source_url uses an RFC 2606 reserved domain and points at nothing real.",
+  "version": 1,
+  "evidence": [
+    {
+      "evidence_id": "ev-001",
+      "lead_ref": "L-001",
+      "source_url": "https://northwind.example.com/newsroom/reno-hub",
+      "title": "Northwind opens third distribution hub",
+      "retrieved_at": "2026-08-02T14:11:00Z",
+      "excerpt": "Northwind Logistics today opened its third distribution hub, a 180,000 square foot facility outside Reno, Nevada.",
+      "content_hash": "sha256:1f0c9a2b",
+      "company_name": "Northwind Logistics"
+    },
+    {
+      "evidence_id": "ev-002",
+      "lead_ref": "L-002",
+      "source_url": "https://lakeside.example.com/careers",
+      "title": "Lakeside Systems open roles",
+      "retrieved_at": "2026-08-10T09:30:00Z",
+      "excerpt": "Lakeside Systems is hiring across revenue operations, with 4 open analyst roles listed this quarter.",
+      "content_hash": "sha256:77ab13de",
+      "company_name": "Lakeside Systems"
+    },
+    {
+      "evidence_id": "ev-003",
+      "lead_ref": "L-005",
+      "source_url": "https://brightpath.example.com/press/series-b",
+      "title": "Brightpath Health raises Series B",
+      "retrieved_at": "2024-11-04T08:00:00Z",
+      "_why_this_is_here": "Deliberately stale: older than the 180-day default.",
+      "excerpt": "Brightpath Health announced a Series B financing round.",
+      "content_hash": "sha256:9c41ba07",
+      "company_name": "Brightpath Health"
+    },
+    {
+      "evidence_id": "ev-004",
+      "lead_ref": "L-004",
+      "source_url": "https://vermilion.example.com/investors",
+      "title": "Vermilion Retail franchise transition",
+      "retrieved_at": "2026-07-19T16:45:00Z",
+      "excerpt": "",
+      "_why_this_is_here": "Deliberately empty excerpt: nothing to verify against.",
+      "content_hash": null,
+      "company_name": "Vermilion Retail"
+    },
+    {
+      "evidence_id": "ev-005",
+      "lead_ref": "L-999-does-not-exist",
+      "source_url": "https://elsewhere.example.com/news",
+      "title": "Unrelated announcement",
+      "retrieved_at": "2026-08-01T12:00:00Z",
+      "excerpt": "An announcement about a company not present in this campaign.",
+      "_why_this_is_here": "Deliberately mis-joined: lead_ref matches no contact.",
+      "content_hash": "sha256:aa10ff32",
+      "company_name": "Elsewhere Holdings"
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "cl-001",
+      "lead_ref": "L-001",
+      "text": "Northwind opened a third distribution hub in Reno last quarter.",
+      "evidence_ids": [
+        "ev-001"
+      ],
+      "source_field": "personalization"
+    },
+    {
+      "claim_id": "cl-002",
+      "lead_ref": "L-002",
+      "text": "Lakeside Systems is hiring 4 RevOps analysts this quarter.",
+      "evidence_ids": [
+        "ev-002"
+      ],
+      "numeric_values": [
+        "4"
+      ],
+      "source_field": "personalization"
+    },
+    {
+      "claim_id": "cl-003",
+      "lead_ref": "L-004",
+      "text": "Vermilion Retail moved 40 stores to a franchise model.",
+      "evidence_ids": [
+        "ev-004"
+      ],
+      "numeric_values": [
+        "40"
+      ],
+      "_why_this_is_here": "The number 40 appears nowhere in ev-004's excerpt, so the claim is reported as unsupported by its own evidence.",
+      "source_field": "personalization"
+    },
+    {
+      "claim_id": "cl-004",
+      "lead_ref": "L-003",
+      "text": "Harborlight Freight cut emissions 32% in 2026.",
+      "evidence_ids": [],
+      "numeric_values": [
+        "32"
+      ],
+      "_why_this_is_here": "Deliberately unsourced: no evidence attached at all.",
+      "source_field": "personalization"
+    }
+  ]
+}

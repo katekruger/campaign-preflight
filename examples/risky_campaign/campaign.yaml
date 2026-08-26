@@ -1,0 +1,70 @@
+# A campaign that must not launch. Every problem here is deliberate and is
+# called out in the comment above it. Synthetic data throughout.
+version: 1
+
+campaign:
+  id: risky-blitz
+  name: Q4 Volume Blitz
+  status: draft
+  timezone: America/New_York
+  daily_limit: 900          # far above any sane threshold
+  stop_on_reply: false      # BLOCKER: repliers keep getting follow-ups
+  stop_on_auto_reply: false
+
+  schedule:
+    start_date: 2027-02-01
+    end_date: 2027-01-01    # BLOCKER: ends before it starts
+    timezone: America/New_York
+    windows:
+      - name: All hours
+        start: "05:30"      # outside recipient-friendly hours
+        end: "22:00"
+        days: [mon, tue, wed, thu, fri, sat, sun]   # weekend sending
+
+  senders:
+    - email: burner@example.com
+      name: Burner Mailbox
+      enabled: true
+      status: connection_error   # provider error state
+      health_score: 22           # far below threshold
+      daily_limit: 40
+      warmup_status: banned
+    - email: paused@example.com
+      name: Paused Mailbox
+      enabled: false
+      status: paused             # contributes no capacity
+      health_score: 55
+      daily_limit: 40
+      warmup_status: paused
+
+  steps:
+    # No opt-out language, placeholder text, a broken link, six links, and
+    # step 2 is a byte-for-byte copy of step 1.
+    - type: email
+      delay: 0
+      delay_unit: days
+      subject: "ACT NOW {{first_name}}!!! TODO finalise subject"
+      body: |
+        Hey {{first_name}},
+
+        Here is a draft of the email. Lorem ipsum dolor sit amet.
+
+        Check out https://example.com/a and https://example.com/b and
+        https://example.com/c and https://example.com/d and
+        https://example.com/e and htp:/not-a-url.
+
+        Reach out to <your name here> at test@example.com .
+    - type: email
+      delay: 2
+      delay_unit: days
+      subject: "ACT NOW {{first_name}}!!! TODO finalise subject"
+      body: |
+        Hey {{first_name}},
+
+        Here is a draft of the email. Lorem ipsum dolor sit amet.
+
+        Check out https://example.com/a and https://example.com/b and
+        https://example.com/c and https://example.com/d and
+        https://example.com/e and htp:/not-a-url.
+
+        Reach out to <your name here> at test@example.com .

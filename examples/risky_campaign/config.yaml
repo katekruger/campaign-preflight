@@ -1,0 +1,7 @@
+version: 1
+
+settings:
+  target_timezone: Europe/London     # the campaign sends on New York time
+  required_variables: [first_name, company_name]
+  internal_domains: [example.com]
+  competitor_domains: [summitforge.example.com]

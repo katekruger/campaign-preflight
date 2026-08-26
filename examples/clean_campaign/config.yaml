@@ -1,0 +1,19 @@
+# Configuration matching this campaign's intent.
+version: 1
+
+settings:
+  target_timezone: America/Phoenix
+  business_hours_start: "08:00"
+  business_hours_end: "18:00"
+  allow_weekend_sending: false
+  required_variables: [first_name, company_name]
+  competitor_domains: [competitor.example.com]
+
+rules:
+  campaign.daily_volume:
+    enabled: true
+    warning_above: 100
+    blocker_above: 250
+  senders.health_below_threshold:
+    enabled: true
+    minimum_score: 80

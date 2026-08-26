@@ -1,0 +1,6 @@
+id,email,first_name,last_name,company_name,company_domain,job_title,country,personalization,status
+I-001,avery.klein@northwind.example.com,Avery,Klein,Northwind Logistics,northwind.example.com,VP Operations,US,Northwind opened a third distribution hub in Reno.,not_contacted
+I-002,priya.raman@lakeside.example.com,Priya,Raman,Lakeside Systems,lakeside.example.com,Director of RevOps,US,Lakeside is hiring across revenue operations.,not_contacted
+I-003,tomas.berg@harborlight.example.com,Tomas,Berg,Harborlight Freight,harborlight.example.com,Head of Finance,US,Harborlight published a quarterly close scorecard.,not_contacted
+I-004,nadia.okafor@vermilion.example.com,Nadia,Okafor,Vermilion Retail,vermilion.example.com,COO,US,Vermilion moved stores to a franchise model.,not_contacted
+I-005,chen.wei@brightpath.example.com,Chen,Wei,Brightpath Health,brightpath.example.com,VP Revenue,US,Brightpath consolidated three billing systems.,not_contacted

@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "evidence": [
+    {
+      "evidence_id": "cev-001",
+      "lead_ref": "C-001",
+      "source_url": "https://northwind.example.com/newsroom",
+      "title": "Northwind Logistics announcement",
+      "retrieved_at": "2026-08-14T09:00:00Z",
+      "excerpt": "Northwind Logistics confirmed the change described in the outreach.",
+      "content_hash": "sha256:00000001",
+      "company_name": "Northwind Logistics"
+    },
+    {
+      "evidence_id": "cev-002",
+      "lead_ref": "C-002",
+      "source_url": "https://lakeside.example.com/newsroom",
+      "title": "Lakeside Systems announcement",
+      "retrieved_at": "2026-08-14T09:00:00Z",
+      "excerpt": "Lakeside Systems currently lists 4 open revenue operations analyst roles for this quarter.",
+      "content_hash": "sha256:00000002",
+      "company_name": "Lakeside Systems"
+    }
+  ],
+  "claims": [
+    {
+      "claim_id": "ccl-001",
+      "lead_ref": "C-001",
+      "text": "Northwind Logistics confirmed the change described in the outreach.",
+      "evidence_ids": [
+        "cev-001"
+      ],
+      "source_field": "personalization"
+    },
+    {
+      "claim_id": "ccl-002",
+      "lead_ref": "C-002",
+      "text": "Lakeside Systems is hiring 4 RevOps analysts this quarter.",
+      "evidence_ids": [
+        "cev-002"
+      ],
+      "source_field": "personalization",
+      "numeric_values": [
+        "4"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+# A campaign that is not broken -- it is unverifiable.
+#
+# Nothing here is wrong. What is missing is the data needed to answer two
+# critical questions:
+#
+#   1. Is anyone in this list on a suppression list?  (no suppressions supplied)
+#   2. Are these sending mailboxes healthy?           (no health scores supplied)
+#
+# Campaign Preflight reports INCOMPLETE rather than READY. "We could not check"
+# is a different answer from "we checked and it was fine", and collapsing the
+# two is the failure mode this tool exists to avoid.
+#
+# Run it and see:
+#   campaign-preflight check \
+#     --campaign examples/incomplete_campaign/campaign.yaml \
+#     --leads examples/incomplete_campaign/leads.csv
+version: 1
+
+campaign:
+  id: incomplete-emea-pilot
+  name: EMEA Pilot
+  status: draft
+  timezone: America/Phoenix
+  daily_limit: 60
+  stop_on_reply: true
+  stop_on_auto_reply: true
+
+  schedule:
+    timezone: America/Phoenix
+    windows:
+      - name: Weekday business hours
+        start: "09:00"
+        end: "16:30"
+        days: [mon, tue, wed, thu, fri]
+
+  senders:
+    # Addresses only. No status, no health score, no daily limit -- exactly what
+    # you get from a provider whose API key lacks account-read scope.
+    - email: dana@example.com
+    - email: mia@example.com
+
+  steps:
+    - type: email
+      delay: 0
+      delay_unit: days
+      subject: "{{first_name}}, quick question on {{company_name}}"
+      body: |
+        Hi {{first_name}},
+
+        {{personalization}}
+
+        We help operations teams shorten their monthly close. Worth fifteen minutes?
+
+        Dana
+
+        Reply "unsubscribe" and I will remove you.

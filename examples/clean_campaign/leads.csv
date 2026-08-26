@@ -1,0 +1,9 @@
+id,email,first_name,last_name,company_name,company_domain,job_title,country,personalization,status
+C-001,avery.klein@northwind.example.com,Avery,Klein,Northwind Logistics,northwind.example.com,VP Operations,US,Saw Northwind opened a third distribution hub in Reno last quarter.,not_contacted
+C-002,priya.raman@lakeside.example.com,Priya,Raman,Lakeside Systems,lakeside.example.com,Director of RevOps,US,Lakeside is hiring four RevOps analysts this quarter.,not_contacted
+C-003,tomas.berg@harborlight.example.com,Tomas,Berg,Harborlight Freight,harborlight.example.com,Head of Finance,US,Harborlight published its first quarterly close scorecard.,not_contacted
+C-004,nadia.okafor@vermilion.example.com,Nadia,Okafor,Vermilion Retail,vermilion.example.com,COO,US,Vermilion moved forty stores to a franchise model.,not_contacted
+C-005,chen.wei@brightpath.example.com,Chen,Wei,Brightpath Health,brightpath.example.com,VP Revenue,US,Brightpath consolidated three billing systems this year.,not_contacted
+C-006,luis.ferreira@cascade.example.com,Luis,Ferreira,Cascade Utilities,cascade.example.com,Controller,US,Cascade Utilities added a shared services centre in Boise.,not_contacted
+C-007,amara.singh@foxglove.example.com,Amara,Singh,Foxglove Manufacturing,foxglove.example.com,CFO,US,Foxglove is standing up a new ERP rollout team.,not_contacted
+C-008,peter.novak@stillwater.example.com,Peter,Novak,Stillwater Foods,stillwater.example.com,Finance Director,US,Stillwater Foods acquired two regional distributors.,not_contacted

@@ -1,0 +1,3 @@
+value,is_domain,reason
+former.contact@retired.example.com,false,unsubscribed
+competitor.example.com,true,competitor domain
