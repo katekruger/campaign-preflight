@@ -1,14 +1,7 @@
 ---
 name: preflight-campaign
 description: >
-  Checks an outbound email campaign for problems before it sends — suppressed
-  contacts, duplicates, unrendered merge fields, missing opt-out language,
-  unhealthy senders, bad schedules, and prompt-injection text pulled in from
-  lead research. Use when the user says "check this campaign", "is this ready to
-  send", "review my outbound before I launch", "preflight this sequence", "look
-  at this lead list", or uploads/pastes a campaign, sequence, or lead list and
-  asks whether it is safe to send. Works from an uploaded file, pasted text, or
-  a campaign the user simply describes in conversation.
+  Use when the user wants a real campaign checked before it sends: "check this campaign", "is this ready to send", "review my outbound before I launch", "preflight this sequence", "look at this lead list", or when they upload, paste, or describe a campaign, sequence, or lead list and ask whether it is safe to send. Reports suppressed contacts, duplicates, unrendered merge fields, missing opt-out language, unhealthy senders, bad schedules, and prompt-injection text carried in from lead research. Works from a file, pasted text, or a description in conversation.
 metadata:
   version: "0.1.0"
 ---

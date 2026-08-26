@@ -1,11 +1,7 @@
 ---
 name: preflight-demo
 description: >
-  Shows what a campaign readiness report looks like, using a bundled synthetic
-  campaign that is deliberately broken in instructive ways. Use when the user
-  asks "what does this check", "show me an example", "what would this catch",
-  "run the demo", or is deciding whether the campaign checker is worth pointing
-  at their real data. Needs no files, no account, and no network.
+  Use when the user wants to see the campaign checker actually run before pointing it at their own data: "show me an example", "run the demo", "can I see a sample report", "show me what a report looks like", "is this worth setting up". Runs a bundled synthetic campaign that is deliberately broken and walks through the resulting report. Needs no files, no account, and no network. For questions about which rules exist or what a specific rule tests, use preflight-rules instead; for checking a real campaign, use preflight-campaign.
 metadata:
   version: "0.1.0"
 ---

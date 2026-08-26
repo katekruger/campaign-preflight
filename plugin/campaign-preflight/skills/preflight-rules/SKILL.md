@@ -1,11 +1,7 @@
 ---
 name: preflight-rules
 description: >
-  Explains what the campaign checker looks for and how to tune it. Use when the
-  user asks "what does it check", "what rules are there", "why did it flag
-  this", "how do I turn that check off", "that threshold is wrong for us", or
-  names a specific rule id like campaign.daily_volume. Also use when a previous
-  check produced a finding the user disagrees with.
+  Use when the user asks about the rules themselves rather than about a campaign: "what rules are there", "which checks does it run", "why did it flag this", "how do I turn that check off", "that threshold is wrong for us", or names a rule id such as campaign.daily_volume. Also use when the user disagrees with a finding from an earlier check and wants it explained or retuned. Covers the rule catalogue, per-rule behaviour, and configuration. To watch the checker run on sample data, use preflight-demo instead.
 metadata:
   version: "0.1.0"
 ---
