@@ -55,6 +55,19 @@ cannot opt out. That is what makes "missing data never becomes `PASS`" a
 structural property rather than a convention — and it is asserted for every rule
 against every failure status in `tests/unit/test_registry.py`.
 
+## Layout
+
+The repository root is the plugin: `.claude-plugin/` holds both the plugin and
+marketplace manifests, `skills/` holds the three skills, and `bin/` holds the
+launchers that the MCP server and CLI run through. `bin/preflight` puts `src/`
+on `PYTHONPATH` directly.
+
+There is one copy of the Python package. An earlier layout kept the plugin in a
+`plugin/` subdirectory with a generated copy of `src/` vendored beside it, so
+that the plugin could run without an install step. Moving the plugin to the root
+achieves the same thing without the second tree, and without the synchronisation
+obligation that came with it.
+
 ## Modules
 
 | Module | Responsibility |
@@ -80,9 +93,9 @@ against every failure status in `tests/unit/test_registry.py`.
 
 The package imports nothing outside the standard library, and targets Python
 3.9. That is a deliberate constraint, not an aesthetic one: Campaign Preflight
-ships inside a Cowork plugin, where the only guaranteed interpreter is the
-system `python3` with no packages installed. A dependency would mean the plugin
-does not work for the person you send it to.
+ships as a Claude plugin, where the only guaranteed interpreter is the system
+`python3` with no packages installed. A dependency would mean the plugin does
+not work for the person who installs it.
 
 Three things this cost, and what was done instead:
 

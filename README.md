@@ -10,6 +10,10 @@ problems before launch.**
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen.svg)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+---
+
+## What it does
+
 Every outbound team has shipped a campaign with a mistake in it. Someone who
 unsubscribed got emailed anyway. A sequence kept following up after the prospect
 replied. A merge field never merged and two hundred people got "Hi
@@ -22,21 +26,117 @@ leads, copy, schedule, senders, and suppression exposure, and returns a
 readiness decision with evidence for every finding. It never writes to your
 provider and it cannot activate anything.
 
+**What it does not do**, up front rather than buried:
+
+- **It does not guarantee deliverability.** It checks configuration and data,
+  not inbox placement, and never invents a deliverability score.
+- **It does not give legal advice.** Region, domain, and opt-out checks compare
+  a campaign against *your own configured policy* — not GDPR, CAN-SPAM, or CASL.
+- **It does not verify mailboxes.** Address checks are syntax only. No DNS, no
+  SMTP.
+- **It does not replace your provider's safeguards.** Keep those on.
+- **Results are a point-in-time snapshot.** A campaign that passed at 09:00 can
+  be edited at 09:05.
+
+Fuller detail in [docs/limitations.md](docs/limitations.md).
+
 ---
 
-## Try it in thirty seconds
+## "We checked and it's fine" ≠ "we couldn't check"
+
+A checker that cannot tell those apart is worse than no checker, because it
+turns a permissions error into a green light.
+
+Campaign Preflight makes the distinction structural. Every provider read returns
+data *plus the reason it does or does not exist*, and every rule declares the
+data it needs. If that data is unavailable, the engine short-circuits the rule
+to `UNKNOWN` before it can run. Rules cannot opt out.
+
+| Situation | Result |
+|---|---|
+| Suppression list read, nobody matched | `PASS` |
+| No suppression list supplied | `UNKNOWN` → run is `INCOMPLETE` |
+| Suppression endpoint returned 403 | `UNKNOWN` → run is `INCOMPLETE` |
+| Zero leads in the campaign | `FAIL` |
+| Lead endpoint unreachable | `UNKNOWN` |
+
+There are four verdicts, not two: `READY`, `READY_WITH_WARNINGS`, `NOT_READY`,
+and `INCOMPLETE`.
+
+---
+
+## Requirements
+
+**Python 3.9 or newer.** That is the whole list.
+
+The package has **no runtime dependencies** — it imports nothing outside the
+standard library. `httpx` is an optional extra needed only for the live
+Instantly provider, behind a lazy import.
+
+The 3.9 floor is deliberate, and deliberately lower than you might expect. It is
+the oldest interpreter the plugin can encounter on a user's machine, and since
+there are no dependencies, nothing forces it higher. CI runs 3.9 through 3.13
+plus a bare-interpreter job that installs nothing at all, on Linux, macOS, and
+Windows.
+
+That combination is what lets the plugin run with no install step: it uses
+whatever `python3` is already there.
+
+---
+
+## Install
+
+### As a Claude plugin (marketplace)
+
+```
+/plugin marketplace add katekruger/campaignpreflightplugin
+/plugin install campaign-preflight
+```
+
+The repository is its own marketplace: `.claude-plugin/marketplace.json` sits at
+the root alongside the plugin manifest.
+
+### As a Claude plugin (local checkout)
+
+```bash
+git clone https://github.com/katekruger/campaignpreflightplugin
+```
+
+```
+/plugin marketplace add ./campaignpreflightplugin
+/plugin install campaign-preflight
+```
+
+### As a CLI
 
 ```bash
 pipx install campaign-preflight
-campaign-preflight demo
 ```
 
-No API key. No network. No configuration. **No dependencies** — the whole thing
-is standard library, Python 3.9+, so it also runs straight from a checkout:
+Or straight from a checkout, with nothing installed at all:
 
 ```bash
 PYTHONPATH=src python3 -m campaign_preflight.cli demo
 ```
+
+### As an MCP server
+
+```bash
+claude mcp add campaign-preflight -- campaign-preflight-mcp
+```
+
+Six read-only tools. Nothing that could activate, edit, import, or send. Setup
+for Claude Code and Claude Desktop: [docs/mcp.md](docs/mcp.md).
+
+---
+
+## Quick start
+
+```bash
+campaign-preflight demo
+```
+
+No API key. No network. No configuration.
 
 ```
 CAMPAIGN PREFLIGHT
@@ -90,52 +190,83 @@ call it a number. This one says it does not know — and drops confidence from
 
 That distinction is the whole idea.
 
----
+### Checking your own campaign
 
-## "We checked and it's fine" ≠ "we couldn't check"
+Once the plugin is installed, describe it in plain language:
 
-A checker that cannot tell those apart is worse than no checker, because it
-turns a permissions error into a green light.
+> Check this campaign before I send it.
 
-Campaign Preflight makes the distinction structural. Every provider read returns
-data *plus the reason it does or does not exist*, and every rule declares the
-data it needs. If that data is unavailable, the engine short-circuits the rule
-to `UNKNOWN` before it can run. Rules cannot opt out.
+> Here's my lead list — anything wrong with it?  *(paste or upload)*
 
-| Situation | Result |
+> I'm sending a 3-email sequence to 200 people, 80 a day, weekdays 9-5 Eastern.
+> Is that okay?
+
+There are three ways in, and none needs an account:
+
+| You have | What happens |
 |---|---|
-| Suppression list read, nobody matched | `PASS` |
-| No suppression list supplied | `UNKNOWN` → run is `INCOMPLETE` |
-| Suppression endpoint returned 403 | `UNKNOWN` → run is `INCOMPLETE` |
-| Zero leads in the campaign | `FAIL` |
-| Lead endpoint unreachable | `UNKNOWN` |
+| **A file** (uploaded, or on disk) | Checked directly. |
+| **A pasted list or some copy** | Written to a scratch file, checked, then cleaned up. |
+| **Only a description** | The campaign file is built from what you say, shown to you, then checked. |
 
-There are four verdicts, not two: `READY`, `READY_WITH_WARNINGS`, `NOT_READY`,
-and `INCOMPLETE`.
+Anything you do not know is left blank rather than guessed — a blank field comes
+back as "couldn't check", which is the honest answer.
+
+### From files, on the command line
+
+```bash
+campaign-preflight check \
+  --campaign examples/clean_campaign/campaign.yaml \
+  --leads examples/clean_campaign/leads.csv \
+  --suppressions examples/clean_campaign/suppressions.csv
+```
+
+Three worked examples ship with the repo, one per verdict:
+
+| Example | Verdict | Exit |
+|---|---|---|
+| [`examples/clean_campaign`](examples/clean_campaign) | `READY`, 100/100 | `0` |
+| [`examples/risky_campaign`](examples/risky_campaign) | `NOT_READY`, 13 blockers | `2` |
+| [`examples/incomplete_campaign`](examples/incomplete_campaign) | `INCOMPLETE` — nothing is wrong, it just can't be verified | `3` |
+
+### In CI
+
+```bash
+campaign-preflight check --campaign campaign.yaml --leads leads.csv --fail-on blocker
+```
+
+Exit codes carry the verdict, so this drops straight into a pipeline. See
+[docs/ci.md](docs/ci.md).
 
 ---
 
-## Why read-only matters
+## What is inside
 
-Campaign Preflight has no code path that writes. Not "we chose not to" — there
-is nothing to call.
+The repository root **is** the plugin. There is no second copy of the tree.
 
-- The Instantly provider routes every request through a transport that checks
-  `(method, path)` against an explicit allowlist and **raises before the request
-  leaves the process**. The check sits below the client and below the provider,
-  so a future code change that adds a `PATCH` fails loudly instead of quietly
-  editing your campaign.
-- Two guards run at import time: the allowlist cannot contain `PUT`, `PATCH`,
-  `DELETE`, `HEAD`, or `OPTIONS`, and `POST` is permitted for exactly one path
-  (`/leads/list`, which is Instantly's documented shape for a filtered read).
-- The MCP server **refuses to start** if any registered tool has a mutating verb
-  in its name or does not declare itself read-only.
-- `tests/contract/test_instantly_transport.py` exercises the full method × path
-  matrix plus every documented mutating endpoint. A failure there is a security
-  incident, not a test failure.
+```
+.claude-plugin/     plugin manifest and marketplace manifest
+skills/             the three skills, one directory each
+bin/                launchers the MCP server and CLI run through
+src/                the Python package: rules, engine, providers, reporters
+tests/              unit, integration, contract
+docs/               rules catalogue, configuration, MCP, CI, limitations, architecture
+examples/           three worked campaigns, one per verdict
+scripts/            generators and the plugin packager
+```
 
-This is what makes it safe to hand an agent a live campaign. It gets the
-analysis and none of the authority.
+---
+
+## Skills
+
+| Skill | Use it for |
+|---|---|
+| **`preflight-campaign`** | Checking a real campaign you supply — a file, a paste, or a description. |
+| **`preflight-demo`** | Watching the checker run against bundled sample data. |
+| **`preflight-rules`** | Which rules exist, what each one tests, and how to retune or disable them. |
+
+The boundaries are deliberate: each description names its own situation and
+points at its neighbour, so a near-miss lands somewhere recoverable.
 
 ---
 
@@ -169,74 +300,78 @@ judgement calls — copy length, link count, generation artifacts — are marked
 
 ---
 
-## Quickstart
+## Configuration
 
-### From files, no account needed
+Campaign Preflight runs with sensible defaults and no config file. Add one when
+your thresholds differ, or to switch on the checks that depend on your own
+domain and region lists.
 
-```bash
-campaign-preflight check \
-  --campaign examples/clean_campaign/campaign.yaml \
-  --leads examples/clean_campaign/leads.csv \
-  --suppressions examples/clean_campaign/suppressions.csv
+```yaml
+version: 1
+
+settings:
+  target_timezone: America/New_York
+  required_variables: [first_name, company_name]
+  internal_domains: [ourcompany.example.com]
+  customer_domains: [bigcustomer.example.com]
+  allow_weekend_sending: false
+
+rules:
+  campaign.daily_volume:
+    warning_above: 100
+    blocker_above: 250
+  senders.health_below_threshold:
+    minimum_score: 80
+  contacts.missing_job_title:
+    enabled: false
 ```
 
-Three worked examples ship with the repo, one per verdict:
-
-| Example | Verdict | Exit |
-|---|---|---|
-| [`examples/clean_campaign`](examples/clean_campaign) | `READY`, 100/100 | `0` |
-| [`examples/risky_campaign`](examples/risky_campaign) | `NOT_READY`, 13 blockers | `2` |
-| [`examples/incomplete_campaign`](examples/incomplete_campaign) | `INCOMPLETE` — nothing is wrong, it just can't be verified | `3` |
-
-### Against a live Instantly campaign
-
 ```bash
-export INSTANTLY_API_KEY="..."
-campaign-preflight instantly --campaign-id 01a03960-aa51-777b-8a74-c93b2883a947
+campaign-preflight validate-config preflight.yaml
+campaign-preflight check --campaign c.yaml --leads l.csv --config preflight.yaml
 ```
 
-Reads the campaign, its leads, its sending accounts, and the workspace block
-list. Five requests, all on the allowlist. See [docs/instantly.md](docs/instantly.md).
+Validation is strict on purpose: an unknown rule id or an unknown option is a
+hard error, not a warning. A typo that silently disables a safety check is worse
+than no config at all.
 
-The key comes from the environment. There is deliberately no `--api-key` flag: a
-key on the command line ends up in shell history, `ps` output, and CI logs.
+Full reference: [docs/configuration.md](docs/configuration.md).
 
-### In CI
+---
 
-```bash
-campaign-preflight check \
-  --campaign campaign.yaml \
-  --leads leads.csv \
-  --fail-on blocker \
-  --format markdown --output preflight.md
-```
+## Why read-only matters
 
-Exit codes carry the verdict, so this drops straight into a pipeline. See
-[docs/ci.md](docs/ci.md).
+Campaign Preflight has no code path that writes. Not "we chose not to" — there
+is nothing to call.
 
-### As an MCP server
+- The Instantly provider routes every request through a transport that checks
+  `(method, path)` against an explicit allowlist and **raises before the request
+  leaves the process**. The check sits below the client and below the provider,
+  so a future code change that adds a `PATCH` fails loudly instead of quietly
+  editing your campaign.
+- Two guards run at import time: the allowlist cannot contain `PUT`, `PATCH`,
+  `DELETE`, `HEAD`, or `OPTIONS`, and `POST` is permitted for exactly one path
+  (`/leads/list`, which is Instantly's documented shape for a filtered read).
+- The MCP server **refuses to start** if any registered tool has a mutating verb
+  in its name or does not declare itself read-only.
+- `tests/contract/test_instantly_transport.py` exercises the full method × path
+  matrix plus every documented mutating endpoint. A failure there is a security
+  incident, not a test failure.
 
-```bash
-claude mcp add campaign-preflight -- campaign-preflight-mcp
-```
+This is what makes it safe to hand an agent a live campaign. It gets the
+analysis and none of the authority.
 
-> Check campaign abc123 before I activate it.
+### What it will never do
 
-Six read-only tools. Nothing that could activate, edit, import, or send. Setup
-for Claude Code and Claude Desktop: [docs/mcp.md](docs/mcp.md).
+- Activate, pause, resume, or schedule a campaign
+- Create, update, move, merge, or delete a lead
+- Add to or remove from a suppression list
+- Send, reply to, or forward an email
+- Modify anything in your sending platform
 
-### As a Cowork plugin
-
-For people who would rather describe a campaign than write a YAML file:
-
-```bash
-uv run python scripts/build_plugin.py     # produces dist/campaign-preflight.plugin
-```
-
-Install that file in Cowork and ask in plain language — upload a lead list,
-paste one, or just describe the sequence and let it build the campaign file for
-you. Same 76 checks, same engine, no install step for the recipient. See
-[plugin/campaign-preflight/README.md](plugin/campaign-preflight/README.md).
+There is no code path to any of these, and two independent guards — the
+transport allowlist and the MCP startup assertion — fail closed if one is ever
+added.
 
 ---
 
@@ -340,23 +475,32 @@ output size are all bounded.
 
 ---
 
-## Limitations
+## Development
 
-Read [docs/limitations.md](docs/limitations.md) before relying on a `READY`. In short:
+```bash
+git clone https://github.com/katekruger/campaignpreflightplugin
+cd campaignpreflightplugin
+uv sync --all-extras
+uv run pytest
+```
 
-- It **does not guarantee deliverability.** It checks configuration and data,
-  not inbox placement, and never invents a deliverability score.
-- It **does not provide legal advice.** Region, domain, and opt-out rules check
-  your campaign against *your* configured outreach policy. They make no
-  determination under GDPR, CAN-SPAM, CASL, or anything else.
-- It **does not replace provider-native safeguards.** Keep them on.
-- **Some checks depend on provider scope.** An API key without block-list access
-  produces `UNKNOWN`, not `PASS`.
-- **LLM-based claim assessment is optional and probabilistic**, labelled
-  `MODEL_ASSESSED` and never presented as fact.
-- **Results are a point-in-time snapshot.** The campaign can change a second
-  later.
-- **It never activates a campaign.**
+```bash
+uv run ruff format .                                  # format
+uv run ruff check .                                   # lint
+uv run mypy                                           # typecheck, strict
+claude plugin validate . --strict                     # manifests
+uv run python scripts/generate_rules_doc.py --check   # docs/rules.md is current
+./scripts/bump-version.sh --check                     # version fields agree
+uv run python scripts/build_plugin.py                 # dist/campaign-preflight.plugin
+```
+
+The package itself has no runtime dependencies; the dev group exists for the
+test suite, the linters, and two libraries used only as test oracles — `httpx`
+for the optional Instantly provider and `PyYAML` to differentially test the
+bundled YAML parser against.
+
+Conventions that look like mistakes until you know why are written down in
+[CLAUDE.md](CLAUDE.md).
 
 ---
 
@@ -375,23 +519,13 @@ Read [docs/limitations.md](docs/limitations.md) before relying on a `READY`. In 
 
 Rules are small, pure, and independently testable — a new one is usually a
 class, a docstring, and a handful of tests. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
-
-```bash
-git clone https://github.com/katekruger/campaignpreflightplugin
-cd campaign-preflight
-uv sync --all-extras
-uv run pytest
-```
-
-The package itself has no runtime dependencies; the dev group exists for the
-test suite (pytest, hypothesis, jsonschema), the linters, and two libraries used
-only as test oracles — `httpx` for the optional Instantly provider and `PyYAML`
-to differentially test the bundled YAML parser against.
+[CONTRIBUTING.md](CONTRIBUTING.md) and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Security
 
-Report vulnerabilities privately: [SECURITY.md](SECURITY.md).
+Report vulnerabilities privately: [SECURITY.md](SECURITY.md). A rule that
+returned `PASS` when the data was missing counts as a security issue.
 
 ## License
 

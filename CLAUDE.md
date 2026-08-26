@@ -18,23 +18,24 @@ other.
 ## Layout
 
 ```
-src/                the Python package as a library and CLI
+.claude-plugin/     plugin manifest and marketplace manifest
+skills/             the three skills, one directory each
+bin/                launchers the MCP server and CLI run through
+src/                the Python package: rules, engine, providers, reporters
 tests/              unit, integration, contract
-docs/               rules catalogue, configuration, limitations, architecture
+docs/               rules catalogue, configuration, MCP, CI, limitations, architecture
 examples/           three worked campaigns, one per verdict
-scripts/            generators with --check modes; see Commands
-plugin/campaign-preflight/
-    .claude-plugin/ plugin manifest
-    skills/         the three skills, one directory each
-    bin/            launchers the MCP server and CLI run through
-    engine/         a generated copy of src/, so the plugin needs no install
+scripts/            generators and the plugin packager
 ```
 
-**`plugin/.../engine/` is generated, not drift.** `scripts/build_plugin.py` is
-the only thing permitted to write it, and CI runs `build_plugin.py --check`, so
-a divergence is a build failure. It exists because the plugin has to run with no
-install step: the MCP server launches `bin/preflight-mcp` directly. Never edit
-it by hand; change `src/` and regenerate.
+**The repo root is the plugin.** `.claude-plugin/plugin.json` and
+`.claude-plugin/marketplace.json` both sit at the root, and the skills are
+discovered from `skills/` there. There is no vendored second copy of the Python
+package; `bin/preflight` puts `src/` on `PYTHONPATH` directly. If you find a
+`plugin/` directory, something has gone wrong.
+
+`scripts/build_plugin.py` no longer generates anything — it smoke-tests the
+launchers and zips the tree into `dist/campaign-preflight.plugin`.
 
 ## The two ideas worth protecting
 
@@ -116,8 +117,8 @@ uv run campaign-preflight demo  # the bundled synthetic campaign
 claude plugin validate . --strict
 ```
 
-Two generated artifacts have `--check` modes, and CI runs both, so drift is a
-build failure rather than a surprise:
+Two things have `--check` modes, and CI runs both, so drift is a build failure
+rather than a surprise:
 
 ```bash
 uv run python scripts/generate_rules_doc.py --check   # docs/rules.md
