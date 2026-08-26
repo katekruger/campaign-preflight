@@ -118,4 +118,4 @@ only — it can never be passed as a tool argument.
 
 ## Source
 
-<https://github.com/katekruger/campaign-preflight> — MIT licensed, 1,400+ tests.
+<https://github.com/katekruger/campaignpreflightplugin> — MIT licensed, 1,400+ tests.

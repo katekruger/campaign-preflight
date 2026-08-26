@@ -99,7 +99,7 @@ false` for that rule. Do not defend a heuristic finding as if it were a fact.
 If they disagree with a **non-heuristic** rule, that is more interesting —
 either their situation is genuinely different (configure it) or the rule is
 wrong (worth reporting at
-<https://github.com/katekruger/campaign-preflight/issues>).
+<https://github.com/katekruger/campaignpreflightplugin/issues>).
 
 ## What it deliberately does not check
 

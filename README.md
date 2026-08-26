@@ -4,8 +4,8 @@
 configuration, contact-data, personalization, suppression, schedule, and sender
 problems before launch.**
 
-[![CI](https://github.com/katekruger/campaign-preflight/actions/workflows/ci.yml/badge.svg)](https://github.com/katekruger/campaign-preflight/actions/workflows/ci.yml)
-[![Security](https://github.com/katekruger/campaign-preflight/actions/workflows/security.yml/badge.svg)](https://github.com/katekruger/campaign-preflight/actions/workflows/security.yml)
+[![CI](https://github.com/katekruger/campaignpreflightplugin/actions/workflows/ci.yml/badge.svg)](https://github.com/katekruger/campaignpreflightplugin/actions/workflows/ci.yml)
+[![Security](https://github.com/katekruger/campaignpreflightplugin/actions/workflows/security.yml/badge.svg)](https://github.com/katekruger/campaignpreflightplugin/actions/workflows/security.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen.svg)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -378,7 +378,7 @@ class, a docstring, and a handful of tests. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
-git clone https://github.com/katekruger/campaign-preflight
+git clone https://github.com/katekruger/campaignpreflightplugin
 cd campaign-preflight
 uv sync --all-extras
 uv run pytest

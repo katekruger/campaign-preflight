@@ -5,8 +5,8 @@
   "author": {
     "name": "Kate Kruger"
   },
-  "homepage": "https://github.com/katekruger/campaign-preflight",
-  "repository": "https://github.com/katekruger/campaign-preflight",
+  "homepage": "https://github.com/katekruger/campaignpreflightplugin",
+  "repository": "https://github.com/katekruger/campaignpreflightplugin",
   "license": "MIT",
   "keywords": [
     "outbound",

@@ -6,7 +6,7 @@ adding one is usually a class, a docstring, and a handful of tests.
 ## Setup
 
 ```bash
-git clone https://github.com/katekruger/campaign-preflight
+git clone https://github.com/katekruger/campaignpreflightplugin
 cd campaign-preflight
 uv sync --all-extras
 uv run pytest
