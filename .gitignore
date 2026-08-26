@@ -47,3 +47,9 @@ affected*.csv
 /campaign.yaml
 /senders.yaml
 /evidence.json
+
+# Packaged plugin artifact — rebuild with scripts/build_plugin.py
+/dist/
+
+# A nested clone GitHub Desktop created. Not part of the project.
+/Untitled/

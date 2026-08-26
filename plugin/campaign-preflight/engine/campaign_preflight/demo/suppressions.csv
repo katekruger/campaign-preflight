@@ -1,0 +1,5 @@
+value,is_domain,reason
+marcus.reyes@stonebridge.example.com,false,unsubscribed 2026-02-11
+ironvale.example.com,true,domain-level opt-out request
+dormant.contact@oldlead.example.com,false,hard bounce
+competitor.example.com,true,competitor domain

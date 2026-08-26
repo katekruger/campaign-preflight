@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "campaign-preflight": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/preflight-mcp",
+      "args": [],
+      "env": {}
+    }
+  }
+}

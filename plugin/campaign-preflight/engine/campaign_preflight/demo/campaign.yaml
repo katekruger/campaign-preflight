@@ -1,0 +1,106 @@
+# Campaign Preflight demo campaign.
+#
+# Everything here is SYNTHETIC. The domains are RFC 2606 reserved names
+# (example.com / .invalid) and no address in this repository belongs to a real
+# person. The campaign is deliberately broken in instructive ways so a single
+# `campaign-preflight demo` run shows passes, warnings, blockers, and unknowns.
+version: 1
+
+campaign:
+  id: demo-enterprise-q3
+  name: Enterprise Q3 Outbound
+  status: draft
+  timezone: Europe/Berlin        # mismatched against a US-target config
+  daily_limit: 400               # above the default blocker threshold of 250
+  stop_on_reply: false           # BLOCKER: repliers keep receiving follow-ups
+  stop_on_auto_reply: false
+
+  schedule:
+    start_date: 2026-01-05
+    end_date: 2026-12-18
+    timezone: Europe/Berlin
+    windows:
+      - name: Weekday mornings
+        start: "07:00"           # earlier than the default 08:00 business hour
+        end: "17:00"
+        days: [mon, tue, wed, thu, fri]
+      - name: Saturday catch-up
+        start: "10:00"
+        end: "14:00"
+        days: [sat]              # weekend sending, disallowed by default
+
+  senders:
+    - email: dana@example.com
+      name: Dana Reyes
+      enabled: true
+      status: active
+      health_score: 92
+      daily_limit: 120
+      warmup_status: active
+      provider: google
+    - email: sam@example.com
+      name: Sam Ortiz
+      enabled: true
+      status: active
+      health_score: 41           # below the default minimum of 80
+      daily_limit: 80
+      warmup_status: issue
+      provider: google
+    - email: robin@example.com
+      name: Robin Vale
+      enabled: true
+      status: active
+      health_score: null         # UNKNOWN: no score reported for this mailbox
+      daily_limit: null          # UNKNOWN: aggregate capacity cannot be summed
+      warmup_status: active
+      provider: custom_imap
+
+  custom_variables:
+    product_name: Northwind Analytics
+
+  steps:
+    - type: email
+      delay: 0
+      delay_unit: days
+      subject: "{{first_name}}, a question about {{company_name}}"
+      body: |
+        Hi {{first_name}},
+
+        {{personalization}}
+
+        We work with teams at {{company_name}} on {{product_name}}. Worth a look?
+
+        Best,
+        Dana
+
+        <a href="https://example.com/unsubscribe">Unsubscribe</a>
+    - type: email
+      delay: 3
+      delay_unit: days
+      subject: "Following up, {{first_name}}"
+      body: |
+        Hi {{first_name}},
+
+        Bumping this up in case it got buried. TODO: add the case study link.
+
+        Read more at htp:/broken-link.example
+
+        Best,
+        Dana
+
+        <a href="https://example.com/unsubscribe">Unsubscribe</a>
+    - type: email
+      delay: 6
+      delay_unit: days
+      subject: "Following up, {{first_name}}"
+      body: |
+        Hi {{first_name}},
+
+        Bumping this up in case it got buried. TODO: add the case study link.
+
+        Read more at htp:/broken-link.example
+
+        Best,
+        Dana
+
+        <a href="https://example.com/unsubscribe">Unsubscribe</a>
