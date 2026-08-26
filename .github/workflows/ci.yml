@@ -250,10 +250,35 @@ jobs:
       - name: Install the Claude CLI
         run: npm install -g @anthropic-ai/claude-code
 
-      # `plugin validate` reads the manifest off disk and needs no credentials;
+      # `plugin validate` reads manifests off disk and needs no credentials;
       # verified by running it with an empty HOME and no API key.
-      - name: Validate the plugin manifest
+      - name: Validate the marketplace manifest
         run: claude plugin validate . --strict
+
+      # `validate .` resolves marketplace.json, so the plugin manifest needs
+      # its own run. --strict is not used directly there: CLAUDE.md at the repo
+      # root raises a warning, because a plugin cannot ship context that way.
+      # The file is here for contributors who open the repo in Claude Code, not
+      # for the plugin, so the warning is expected. Everything else is still
+      # treated as fatal -- a new warning fails the build.
+      - name: Validate the plugin manifest
+        run: |
+          set +e
+          output=$(claude plugin validate .claude-plugin/plugin.json 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if [ $status -ne 0 ]; then
+            echo "::error::plugin manifest validation failed"
+            exit 1
+          fi
+          unexpected=$(echo "$output" | grep '❯' | grep -v 'CLAUDE.md at the plugin root' || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::unexpected validation warning"
+            echo "$unexpected"
+            exit 1
+          fi
+          echo "plugin manifest valid; only the known CLAUDE.md warning present"
 
       - uses: astral-sh/setup-uv@v7
         with:
