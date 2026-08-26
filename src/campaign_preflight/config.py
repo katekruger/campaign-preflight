@@ -24,9 +24,10 @@ from __future__ import annotations
 
 import dataclasses
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Tuple, Type, TypeVar
+from typing import Any
 
 from . import _yaml
 from .errors import ConfigurationError, InputError
@@ -34,15 +35,15 @@ from .models import Severity, as_tuple
 
 __all__ = [
     "CONFIG_SCHEMA_VERSION",
-    "RuleOptions",
-    "GlobalSettings",
-    "ScoringConfig",
     "EvidenceConfig",
+    "GlobalSettings",
     "PreflightConfig",
+    "RuleOptions",
+    "ScoringConfig",
     "load_config",
     "load_config_document",
-    "safe_resolve",
     "option_defaults",
+    "safe_resolve",
 ]
 
 CONFIG_SCHEMA_VERSION = 1
@@ -52,12 +53,28 @@ SUPPORTED_CONFIG_VERSIONS = frozenset({1})
 # beats an out-of-memory parse of a hostile file.
 MAX_CONFIG_BYTES = 2 * 1024 * 1024
 
-T = TypeVar("T")
-
 
 # ---------------------------------------------------------------------------
 # Coercion and validation helpers
 # ---------------------------------------------------------------------------
+
+
+def _unwrap_optional(text: str) -> str | None:
+    """Strip one layer of optionality, returning the inner type or None.
+
+    Handles both spellings, since the codebase may be written either way:
+    ``Optional[str]`` and ``str | None``. Returns ``None`` when the annotation
+    is not optional, so the caller can tell "unwrapped" from "nothing to do"
+    and cannot loop.
+    """
+    stripped = text.strip()
+    if stripped.startswith("Optional[") and stripped.endswith("]"):
+        return stripped[len("Optional[") : -1].strip()
+    parts = [p.strip() for p in stripped.split("|")]
+    if len(parts) > 1 and "None" in parts:
+        remaining = [p for p in parts if p != "None"]
+        return " | ".join(remaining) if remaining else "Any"
+    return None
 
 
 def _coerce(value: Any, annotation: Any, where: str) -> Any:
@@ -67,12 +84,12 @@ def _coerce(value: Any, annotation: Any, where: str) -> Any:
     produces (a list where a tuple is declared, an int where a float is) and
     rejects everything else rather than guessing.
     """
-    text = str(annotation)
+    text = str(annotation).strip()
 
-    if "Optional" in text or "None" in text:
+    inner = _unwrap_optional(text)
+    if inner is not None:
         if value is None:
             return None
-        inner = text.replace("Optional[", "").rstrip("]")
         return _coerce(value, inner, where)
 
     if text.startswith(("Tuple", "tuple")):
@@ -92,7 +109,9 @@ def _coerce(value: Any, annotation: Any, where: str) -> Any:
             return Severity(str(value).strip().upper())
         except ValueError:
             allowed = ", ".join(s.value for s in Severity)
-            raise ConfigurationError(f"{where}: unknown severity {value!r}; allowed: {allowed}")
+            raise ConfigurationError(
+                f"{where}: unknown severity {value!r}; allowed: {allowed}"
+            ) from None
 
     if "bool" in text:
         if isinstance(value, bool):
@@ -117,39 +136,44 @@ def _coerce(value: Any, annotation: Any, where: str) -> Any:
     return value
 
 
-def _build(model: Type[T], payload: Mapping[str, Any], where: str) -> T:
-    """Construct a config dataclass from a mapping, rejecting unknown keys."""
+def _build(model: type[Any], payload: Mapping[str, Any], where: str) -> Any:
+    """Construct a config dataclass from a mapping, rejecting unknown keys.
+
+    Returns ``Any`` rather than a TypeVar: the dataclass protocol mypy needs
+    for ``fields()`` cannot be expressed over an arbitrary config model here,
+    and every call site annotates the result it expects.
+    """
     if not isinstance(payload, Mapping):
         raise ConfigurationError(f"{where}: expected a mapping, got {type(payload).__name__}")
 
-    known = {f.name: f for f in fields(model)}  # type: ignore[arg-type]
+    known = {f.name: f for f in fields(model)}
     unknown = sorted(set(payload) - set(known))
     if unknown:
         suggestion = _closest(unknown[0], frozenset(known))
         hint = f"did you mean '{suggestion}'?" if suggestion else f"allowed: {', '.join(known)}"
         raise ConfigurationError(f"{where}: unknown option '{unknown[0]}'", hint=hint)
 
-    values: Dict[str, Any] = {}
+    values: dict[str, Any] = {}
     for name, value in payload.items():
         values[name] = _coerce(value, known[name].type, f"{where}.{name}")
-    return model(**values)  # type: ignore[call-arg]
+    return model(**values)
 
 
-def _closest(value: str, candidates: frozenset) -> Optional[str]:
+def _closest(value: str, candidates: frozenset[str]) -> str | None:
     import difflib
 
     matches = difflib.get_close_matches(value, sorted(candidates), n=1, cutoff=0.7)
     return matches[0] if matches else None
 
 
-def option_defaults(model: type) -> Dict[str, Any]:
+def option_defaults(model: type) -> dict[str, Any]:
     """The default value of every option on a rule's options model."""
-    defaults: Dict[str, Any] = {}
-    for f in fields(model):  # type: ignore[arg-type]
+    defaults: dict[str, Any] = {}
+    for f in fields(model):
         if f.default is not dataclasses.MISSING:
             defaults[f.name] = f.default
-        elif f.default_factory is not dataclasses.MISSING:  # type: ignore[misc]
-            defaults[f.name] = f.default_factory()  # type: ignore[misc]
+        elif f.default_factory is not dataclasses.MISSING:
+            defaults[f.name] = f.default_factory()
         else:  # pragma: no cover - every option has a default
             defaults[f.name] = None
     return defaults
@@ -165,7 +189,7 @@ class RuleOptions:
     """Base options every rule accepts. Rules subclass this to add their own."""
 
     enabled: bool = True
-    severity: Optional[Severity] = None
+    severity: Severity | None = None
     """Override the rule's declared severity. ``None`` keeps the default."""
 
 
@@ -177,7 +201,7 @@ class GlobalSettings:
     legal-compliance claim; see ``docs/limitations.md``.
     """
 
-    target_timezone: Optional[str] = None
+    target_timezone: str | None = None
     """The timezone you expect the campaign to send in. Used by
     ``schedule.timezone_mismatch``; unset means the check is not applicable."""
 
@@ -185,19 +209,19 @@ class GlobalSettings:
     business_hours_end: str = "18:00"
     allow_weekend_sending: bool = False
 
-    required_variables: Tuple[str, ...] = ("first_name",)
+    required_variables: tuple[str, ...] = ("first_name",)
     """Template variables every lead must have a value for."""
 
-    internal_domains: Tuple[str, ...] = ()
-    competitor_domains: Tuple[str, ...] = ()
-    customer_domains: Tuple[str, ...] = ()
-    restricted_regions: Tuple[str, ...] = ()
+    internal_domains: tuple[str, ...] = ()
+    competitor_domains: tuple[str, ...] = ()
+    customer_domains: tuple[str, ...] = ()
+    restricted_regions: tuple[str, ...] = ()
     """Region or country codes your organization has chosen not to contact."""
 
     allow_free_email_domains: bool = False
     allow_role_addresses: bool = False
 
-    opt_out_phrases: Tuple[str, ...] = (
+    opt_out_phrases: tuple[str, ...] = (
         "unsubscribe",
         "opt out",
         "opt-out",
@@ -233,7 +257,7 @@ class GlobalSettings:
 class ScoringConfig:
     """Weights for the readiness score. Published, not hidden."""
 
-    fail_weights: Dict[Severity, float] = field(
+    fail_weights: dict[Severity, float] = field(
         default_factory=lambda: {
             Severity.BLOCKER: 30.0,
             Severity.HIGH: 15.0,
@@ -242,7 +266,7 @@ class ScoringConfig:
             Severity.INFO: 0.0,
         }
     )
-    warn_weights: Dict[Severity, float] = field(
+    warn_weights: dict[Severity, float] = field(
         default_factory=lambda: {
             Severity.BLOCKER: 10.0,
             Severity.HIGH: 6.0,
@@ -254,7 +278,7 @@ class ScoringConfig:
     high_failure_blocks: bool = True
     """When true, any HIGH-severity FAIL forces NOT_READY."""
 
-    critical_rules: Tuple[str, ...] = (
+    critical_rules: tuple[str, ...] = (
         "campaign.exists",
         "campaign.has_steps",
         "campaign.has_senders",
@@ -271,7 +295,7 @@ class ScoringConfig:
         object.__setattr__(self, "critical_rules", as_tuple(self.critical_rules))
         for name in ("fail_weights", "warn_weights"):
             raw = getattr(self, name)
-            resolved: Dict[Severity, float] = {}
+            resolved: dict[Severity, float] = {}
             for key, value in raw.items():
                 severity = key if isinstance(key, Severity) else Severity(str(key).upper())
                 if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -284,20 +308,18 @@ class ScoringConfig:
                     )
                 resolved[severity] = float(value)
             # Unspecified severities keep their default weight.
-            defaults = (
-                _DEFAULT_FAIL_WEIGHTS if name == "fail_weights" else _DEFAULT_WARN_WEIGHTS
-            )
+            defaults = _DEFAULT_FAIL_WEIGHTS if name == "fail_weights" else _DEFAULT_WARN_WEIGHTS
             object.__setattr__(self, name, {**defaults, **resolved})
 
 
-_DEFAULT_FAIL_WEIGHTS: Dict[Severity, float] = {
+_DEFAULT_FAIL_WEIGHTS: dict[Severity, float] = {
     Severity.BLOCKER: 30.0,
     Severity.HIGH: 15.0,
     Severity.MEDIUM: 7.0,
     Severity.LOW: 3.0,
     Severity.INFO: 0.0,
 }
-_DEFAULT_WARN_WEIGHTS: Dict[Severity, float] = {
+_DEFAULT_WARN_WEIGHTS: dict[Severity, float] = {
     Severity.BLOCKER: 10.0,
     Severity.HIGH: 6.0,
     Severity.MEDIUM: 3.0,
@@ -314,7 +336,7 @@ class EvidenceConfig:
     evaluator: str = "disabled"
     """``disabled`` | ``fixture`` | ``openai_compatible``. Default sends nothing."""
 
-    evaluator_model: Optional[str] = None
+    evaluator_model: str | None = None
     evaluator_prompt_version: str = "v1"
     max_claims_evaluated: int = 25
     """Hard cap on how many claims may ever leave the machine."""
@@ -340,8 +362,8 @@ class PreflightConfig:
     settings: GlobalSettings = field(default_factory=GlobalSettings)
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
     evidence: EvidenceConfig = field(default_factory=EvidenceConfig)
-    rules: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    source_path: Optional[str] = None
+    rules: dict[str, dict[str, Any]] = field(default_factory=dict)
+    source_path: str | None = None
 
     def __post_init__(self) -> None:
         if self.version not in SUPPORTED_CONFIG_VERSIONS:
@@ -359,12 +381,13 @@ class PreflightConfig:
             if isinstance(value, dict):
                 object.__setattr__(self, name, _build(model, value, name))
 
-    def raw_options(self, rule_id: str) -> Dict[str, Any]:
+    def raw_options(self, rule_id: str) -> dict[str, Any]:
         return dict(self.rules.get(rule_id, {}))
 
     def options_for(self, rule_id: str, options_model: type) -> RuleOptions:
         """Build a validated options object for one rule."""
-        return _build(options_model, self.raw_options(rule_id), f"rules.{rule_id}")  # type: ignore[return-value]
+        built: RuleOptions = _build(options_model, self.raw_options(rule_id), f"rules.{rule_id}")
+        return built
 
 
 # ---------------------------------------------------------------------------
@@ -372,7 +395,7 @@ class PreflightConfig:
 # ---------------------------------------------------------------------------
 
 
-def safe_resolve(path: "Path | str") -> Path:
+def safe_resolve(path: Path | str) -> Path:
     """Resolve a user-supplied path, refusing to traverse a symlink chain.
 
     Campaign Preflight only ever reads paths the user typed, so this is a
@@ -392,7 +415,7 @@ def safe_resolve(path: "Path | str") -> Path:
     return resolved
 
 
-def read_document(path: "Path | str", *, what: str, max_bytes: int = MAX_CONFIG_BYTES) -> Any:
+def read_document(path: Path | str, *, what: str, max_bytes: int = MAX_CONFIG_BYTES) -> Any:
     """Read and parse a YAML/JSON document with size and encoding guards."""
     resolved = safe_resolve(path)
     if not resolved.is_file():
@@ -415,7 +438,7 @@ def read_document(path: "Path | str", *, what: str, max_bytes: int = MAX_CONFIG_
         raise InputError(f"{what} is not valid YAML/JSON: {path} ({exc})") from exc
 
 
-def load_config_document(document: Any, *, source: Optional[str] = None) -> PreflightConfig:
+def load_config_document(document: Any, *, source: str | None = None) -> PreflightConfig:
     """Validate an already-parsed config mapping.
 
     Rule ids are checked against the live registry, so a typo like
@@ -432,7 +455,11 @@ def load_config_document(document: Any, *, source: Optional[str] = None) -> Pref
     unknown = sorted(set(document) - known)
     if unknown:
         suggestion = _closest(unknown[0], frozenset(known))
-        hint = f"did you mean '{suggestion}'?" if suggestion else f"allowed: {', '.join(sorted(known))}"
+        hint = (
+            f"did you mean '{suggestion}'?"
+            if suggestion
+            else f"allowed: {', '.join(sorted(known))}"
+        )
         raise ConfigurationError(f"unknown configuration key '{unknown[0]}'", hint=hint)
 
     version = document.get("version", CONFIG_SCHEMA_VERSION)
@@ -447,8 +474,7 @@ def load_config_document(document: Any, *, source: Optional[str] = None) -> Pref
     for rule_id, options in rules.items():
         if not isinstance(options, dict):
             raise ConfigurationError(
-                f"rules.{rule_id}: expected a mapping of options, got "
-                f"{type(options).__name__}"
+                f"rules.{rule_id}: expected a mapping of options, got {type(options).__name__}"
             )
 
     config = PreflightConfig(
@@ -479,7 +505,7 @@ def _validate_rule_ids(config: PreflightConfig) -> None:
         config.options_for(rule_id, get_rule(rule_id).options_model)
 
 
-def load_config(path: "Path | str | None") -> PreflightConfig:
+def load_config(path: Path | str | None) -> PreflightConfig:
     """Load a config file, or return defaults when ``path`` is ``None``."""
     if path is None:
         return PreflightConfig()

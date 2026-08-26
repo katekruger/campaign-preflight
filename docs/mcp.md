@@ -16,7 +16,10 @@ analysis and none of the authority.
 The guarantee is enforced, not asserted:
 
 - The server **refuses to start** if any tool has a mutating verb in its name,
-  or if any tool description does not begin with `READ-ONLY`.
+  if any tool description does not begin with `READ-ONLY`, or if any tool is
+  missing its `readOnlyHint` annotation.
+- Every tool is annotated `readOnlyHint: true`, `destructiveHint: false`, which
+  MCP clients surface to the operator without them reading the source.
 - No tool accepts an API key. Credentials come from the server process's
   environment.
 - File access is limited to the exact paths a caller passes. No directory is
@@ -155,11 +158,8 @@ If you installed the package instead of running from a checkout:
 }
 ```
 
-Restart Claude Desktop after editing. The MCP extra is required:
-
-```bash
-pip install "campaign-preflight[mcp]"
-```
+Restart Claude Desktop after editing. Nothing extra to install: the server is
+written directly on JSON-RPC over stdio and needs only the standard library.
 
 ## Asking for a check
 
@@ -185,5 +185,19 @@ tool.
 stdout, so all logging goes to stderr. Set `CAMPAIGN_PREFLIGHT_LOG_LEVEL=DEBUG`
 for more.
 
-**The SDK version.** The server supports both the 1.x `FastMCP` and the 2.x
-`MCPServer` class names and resolves whichever is installed.
+**No SDK is involved.** MCP's stdio transport is newline-delimited JSON-RPC
+2.0, which the server implements directly in
+`campaign_preflight/mcp/protocol.py`. That keeps the package dependency-free, so
+it runs on a bare system `python3` — which is what makes the Cowork plugin
+possible. It implements `initialize`, `tools/list`, `tools/call`, and `ping`.
+
+**Testing it by hand.** The transport is plain text, so you can drive it from a
+shell:
+
+```bash
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"1"}}}' \
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+  | campaign-preflight-mcp
+```

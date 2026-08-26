@@ -19,7 +19,7 @@ import re
 
 from ..errors import redact_secrets
 
-__all__ = ["redact_email", "redact_text", "redact_samples"]
+__all__ = ["redact_email", "redact_samples", "redact_text"]
 
 _EMAIL_IN_TEXT = re.compile(r"(?<![\w.+*-])([\w.+-]{1,64})@([\w.-]{1,255}\.[A-Za-z]{2,})")
 
@@ -64,9 +64,7 @@ def redact_text(value: str, *, redacted: bool = True) -> str:
     text = redact_secrets(value)
     if not redacted:
         return text
-    text = _EMAIL_IN_TEXT.sub(
-        lambda m: f"{_mask_local(m.group(1))}@{m.group(2)}", text
-    )
+    text = _EMAIL_IN_TEXT.sub(lambda m: f"{_mask_local(m.group(1))}@{m.group(2)}", text)
     return _ADDRESS_LIKE.sub(_mask_match, text)
 
 

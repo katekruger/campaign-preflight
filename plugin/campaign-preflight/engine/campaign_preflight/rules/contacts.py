@@ -8,9 +8,8 @@ can be checked by hand.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from ..config import PreflightConfig, RuleOptions
@@ -40,17 +39,62 @@ __all__: list[str] = []
 # ISO 3166-1 alpha-2 codes plus the country names most often typed by hand. Used
 # only to spot values that cannot be a country at all -- an unrecognized value is
 # reported as unverifiable, never as wrong.
-_COMMON_COUNTRY_NAMES = frozenset({
-    "australia", "austria", "belgium", "brazil", "canada", "chile", "china",
-    "colombia", "czechia", "czech republic", "denmark", "finland", "france",
-    "germany", "greece", "hong kong", "hungary", "india", "indonesia",
-    "ireland", "israel", "italy", "japan", "malaysia", "mexico", "netherlands",
-    "new zealand", "norway", "philippines", "poland", "portugal", "romania",
-    "singapore", "south africa", "south korea", "korea", "spain", "sweden",
-    "switzerland", "taiwan", "thailand", "turkey", "ukraine",
-    "united arab emirates", "united kingdom", "great britain", "uk",
-    "united states", "united states of america", "usa", "us", "vietnam",
-})
+_COMMON_COUNTRY_NAMES = frozenset(
+    {
+        "australia",
+        "austria",
+        "belgium",
+        "brazil",
+        "canada",
+        "chile",
+        "china",
+        "colombia",
+        "czechia",
+        "czech republic",
+        "denmark",
+        "finland",
+        "france",
+        "germany",
+        "greece",
+        "hong kong",
+        "hungary",
+        "india",
+        "indonesia",
+        "ireland",
+        "israel",
+        "italy",
+        "japan",
+        "malaysia",
+        "mexico",
+        "netherlands",
+        "new zealand",
+        "norway",
+        "philippines",
+        "poland",
+        "portugal",
+        "romania",
+        "singapore",
+        "south africa",
+        "south korea",
+        "korea",
+        "spain",
+        "sweden",
+        "switzerland",
+        "taiwan",
+        "thailand",
+        "turkey",
+        "ukraine",
+        "united arab emirates",
+        "united kingdom",
+        "great britain",
+        "uk",
+        "united states",
+        "united states of america",
+        "usa",
+        "us",
+        "vietnam",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -116,7 +160,7 @@ class _LeadRule(Rule):
     """Base for rules that scan every lead. Provides the sample limit."""
 
     category = RuleCategory.CONTACTS
-    requires = (Capability.LEADS,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.LEADS,)
     options_model = RatioOptions
 
     @staticmethod
@@ -270,8 +314,7 @@ class DuplicateCompanyContact(_LeadRule):
             first = (lead.first_name or "").strip().lower()
             last = (lead.last_name or "").strip().lower()
             company = (
-                normalize_domain(lead.company_domain)
-                or (lead.company_name or "").strip().lower()
+                normalize_domain(lead.company_domain) or (lead.company_name or "").strip().lower()
             )
             if not first or not last or not company:
                 continue
@@ -471,12 +514,8 @@ class FreeEmailDomain(_LeadRule):
     ) -> RuleResult:
         assert isinstance(options, FreeDomainOptions)
         if config.settings.allow_free_email_domains:
-            return self.not_applicable(
-                "Personal email domains are allowed by configuration."
-            )
-        affected = [
-            lead for lead in ctx.leads if (lead.email_domain or "") in FREE_EMAIL_DOMAINS
-        ]
+            return self.not_applicable("Personal email domains are allowed by configuration.")
+        affected = [lead for lead in ctx.leads if (lead.email_domain or "") in FREE_EMAIL_DOMAINS]
         return _ratio_result(
             self,
             options,
@@ -684,9 +723,7 @@ class FormulaInjection(_LeadRule):
         "export is opened in Excel or Sheets. Campaign Preflight neutralizes these "
         "in anything it writes; this rule reports them in your source data."
     )
-    remediation = (
-        "Prefix the affected values with an apostrophe, or clean them at the source."
-    )
+    remediation = "Prefix the affected values with an apostrophe, or clean them at the source."
 
     def evaluate(
         self, ctx: PreflightContext, options: RuleOptions, config: PreflightConfig

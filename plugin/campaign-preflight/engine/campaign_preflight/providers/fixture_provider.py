@@ -27,7 +27,7 @@ from ..models import (
 from .base import CampaignProvider, ProviderResult, ok, unsupported
 from .csv_provider import CSVProvider
 
-__all__ = ["FixtureProvider", "demo_paths", "DEMO_DIR"]
+__all__ = ["DEMO_DIR", "FixtureProvider", "demo_paths"]
 
 DEMO_DIR = Path(__file__).resolve().parent.parent / "demo"
 
@@ -66,9 +66,7 @@ class FixtureProvider(CampaignProvider):
             Capability.CAMPAIGN, "fixture supplied no campaign"
         )
         self._leads = leads or unsupported(Capability.LEADS, "fixture supplied no leads")
-        self._senders = senders or unsupported(
-            Capability.SENDERS, "fixture supplied no senders"
-        )
+        self._senders = senders or unsupported(Capability.SENDERS, "fixture supplied no senders")
         self._sender_health = sender_health
         self._suppressions = suppressions or unsupported(
             Capability.SUPPRESSIONS, "fixture supplied no suppression list"
@@ -76,9 +74,7 @@ class FixtureProvider(CampaignProvider):
         self._evidence = evidence or unsupported(
             Capability.EVIDENCE, "fixture supplied no evidence"
         )
-        self._claims = claims or unsupported(
-            Capability.EVIDENCE, "fixture supplied no claims"
-        )
+        self._claims = claims or unsupported(Capability.EVIDENCE, "fixture supplied no claims")
         self._analytics = analytics or unsupported(
             Capability.ANALYTICS, "fixture supplied no analytics"
         )

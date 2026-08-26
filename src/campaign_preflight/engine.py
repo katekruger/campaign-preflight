@@ -42,7 +42,7 @@ from .providers.base import CampaignProvider, ProviderResult
 from .rules import Rule, all_rules
 from .scoring import decide_readiness, score_results
 
-__all__ = ["gather_context", "evaluate", "run_preflight"]
+__all__ = ["evaluate", "gather_context", "run_preflight"]
 
 
 async def gather_context(
@@ -160,7 +160,7 @@ def evaluate(ctx: PreflightContext, config: PreflightConfig) -> tuple[RuleResult
 
         try:
             result = rule.evaluate(ctx, options, config)
-        except Exception as exc:  # noqa: BLE001 - one bad rule must not end the run
+        except Exception as exc:
             results.append(
                 rule.build(
                     RuleStatus.UNKNOWN,
@@ -229,9 +229,7 @@ def build_report(
         failure_count=sum(1 for r in results if r.status is RuleStatus.FAIL),
         unknown_count=sum(1 for r in results if r.status is RuleStatus.UNKNOWN),
         passed_count=sum(1 for r in results if r.status is RuleStatus.PASS),
-        not_applicable_count=sum(
-            1 for r in results if r.status is RuleStatus.NOT_APPLICABLE
-        ),
+        not_applicable_count=sum(1 for r in results if r.status is RuleStatus.NOT_APPLICABLE),
         limitations=tuple(dict.fromkeys(limitations)),
         provider_errors=ctx.provider.errors,
         redacted=redacted,
@@ -250,11 +248,7 @@ async def run_preflight(
 ) -> PreflightReport:
     """Gather, evaluate, and score in one call. The main entry point."""
     started = time.perf_counter()
-    ctx = await gather_context(
-        provider, campaign_id=campaign_id, lead_limit=lead_limit, now=now
-    )
+    ctx = await gather_context(provider, campaign_id=campaign_id, lead_limit=lead_limit, now=now)
     results = evaluate(ctx, config)
     duration = time.perf_counter() - started
-    return build_report(
-        ctx, results, config, duration_seconds=duration, redacted=redacted
-    )
+    return build_report(ctx, results, config, duration_seconds=duration, redacted=redacted)

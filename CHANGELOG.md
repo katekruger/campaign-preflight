@@ -10,6 +10,50 @@ The **report JSON schema** is versioned separately from the package; see
 
 ## [Unreleased]
 
+### Changed
+
+- **The package now has zero runtime dependencies** and targets Python 3.9.
+  This is what makes the Cowork plugin possible: the only interpreter
+  guaranteed there is the system `python3` with nothing installed alongside it,
+  so any dependency would mean the plugin does not work for its recipient.
+  - pydantic v2 models became frozen dataclasses, keeping the "a rule cannot
+    mutate its input" guarantee at runtime.
+  - PyYAML was replaced by a bundled YAML-subset parser, differentially tested
+    against PyYAML on every document the tool reads (values and types).
+  - typer and rich were replaced by argparse and raw ANSI.
+  - The `mcp` SDK was replaced by a direct JSON-RPC-over-stdio implementation.
+  - `httpx` became an optional extra (`campaign-preflight[instantly]`) behind a
+    lazy import, needed only for the live Instantly provider.
+- No rule logic, scoring, or normalization changed as part of this.
+
+### Added
+
+- **Cowork plugin** (`plugin/campaign-preflight`, built by
+  `scripts/build_plugin.py`) with three skills covering the ways a non-CLI user
+  actually arrives: an uploaded file, a pasted lead list, or a campaign
+  described in conversation.
+- MCP tools now carry `readOnlyHint` / `destructiveHint` annotations, and the
+  server refuses to start if any tool is missing them.
+- `audit_allowlist()` makes the read-only transport's import-time guard a
+  testable function, and rejects unanchored patterns as well as mutating methods.
+- GitHub Actions for CI, security, and release; issue and pull-request
+  templates; Dependabot.
+
+### Fixed
+
+- `_coerce` would recurse infinitely on a PEP 604 (`str | None`) annotation.
+  Found by enabling the annotation modernization lint.
+- URL extraction missed typo'd schemes (`htp:/example`) and schemeless hosts,
+  so `copy.malformed_urls` did not fire on them.
+- `copy.placeholder_text` scanned tag-stripped text, so an angle-bracket
+  placeholder such as `<your company here>` was removed before it could be found.
+- `copy.generation_artifacts` did not match a model preamble on the body's first
+  line, because the pattern was anchored without `MULTILINE`.
+- Redaction was not idempotent: masking an already-masked address consumed
+  another character each pass.
+- `normalize_domain` was not idempotent for values with interior whitespace.
+
+
 ## [0.1.0] - 2026-08-25
 
 First release.

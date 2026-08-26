@@ -1,0 +1,76 @@
+name: New rule proposal
+description: Something that should be caught before a campaign sends, but isn't.
+labels: ["rule-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The bar for a new rule is that it catches something **specific and
+        consequential**, and can be decided **deterministically** from data the
+        tool already has.
+
+        Things that will not be accepted, and why:
+
+        - **Spam-word lists.** "Free" and "act now" are not evidence of
+          anything, and shipping them trains people to ignore the tool.
+        - **Invented metrics.** If a provider does not expose a deliverability
+          score, the rule returns `UNKNOWN`. It does not estimate one.
+        - **Legal determinations.** Region and consent rules check a campaign
+          against a policy the user configured. They say nothing about what any
+          law requires.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What goes wrong
+      description: The real-world failure. What actually happens when this isn't caught?
+    validations:
+      required: true
+
+  - type: textarea
+    id: detection
+    attributes:
+      label: How it can be detected
+      description: >
+        What data is needed, and what makes it a finding? Be concrete — a rule
+        has to decide the same way every time.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options: [campaign, contacts, suppression, personalization, copy, schedule, senders]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Suggested severity
+      description: BLOCKER means it should stop a launch on its own.
+      options: [BLOCKER, HIGH, MEDIUM, LOW, INFO]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: heuristic
+    attributes:
+      label: Is this a judgement call?
+      description: >
+        Heuristic rules are labelled as such everywhere and are never blockers.
+        Being honest here makes the proposal more likely to land, not less.
+      options:
+        - "No — it is deterministic and verifiable"
+        - "Yes — it is a signal worth reviewing, not a fact"
+    validations:
+      required: true
+
+  - type: textarea
+    id: false_positives
+    attributes:
+      label: When would it fire wrongly?
+      description: Every rule has a false-positive case. Naming yours helps set the default threshold.
+    validations:
+      required: true

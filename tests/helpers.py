@@ -8,8 +8,7 @@ Pass a capability explicitly to simulate a provider that could not answer.
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timezone
-from pathlib import Path
+from datetime import datetime, time, timezone
 from typing import Any
 
 from campaign_preflight.config import PreflightConfig
@@ -82,8 +81,11 @@ def make_leads(count: int, **overrides: Any) -> tuple[Lead, ...]:
             company_domain=f"company{i}.example.com",
             source_row=i + 2,
             **{
-                **({"personalization": f"Company {i} opened a new site this year."}
-                   if "personalization" not in overrides else {}),
+                **(
+                    {"personalization": f"Company {i} opened a new site this year."}
+                    if "personalization" not in overrides
+                    else {}
+                ),
                 **overrides,
             },
         )
@@ -225,5 +227,3 @@ def run_rule(rule_id: str, ctx: PreflightContext, config: PreflightConfig | None
         if not ctx.capability_status(capability).is_ok:
             return rule.missing_capability_result(ctx, capability)
     return rule.evaluate(ctx, options, resolved)
-
-

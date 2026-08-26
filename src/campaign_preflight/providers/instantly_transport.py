@@ -19,7 +19,7 @@ asserts that no second one appears.
 from __future__ import annotations
 
 import re
-from typing import Any, Final
+from typing import Final
 
 try:
     import httpx
@@ -31,14 +31,14 @@ except ImportError as _exc:  # pragma: no cover - exercised by the optional-extr
     ) from _exc
 
 __all__ = [
-    "ReadOnlyViolation",
-    "ReadOnlyTransport",
     "READ_ONLY_ALLOWLIST",
+    "ReadOnlyTransport",
+    "ReadOnlyViolation",
     "is_allowed",
 ]
 
 
-class ReadOnlyViolation(RuntimeError):
+class ReadOnlyViolation(RuntimeError):  # noqa: N818 - reads better than ...Error
     """Raised when a request would leave the read-only allowlist.
 
     This is a programming error inside Campaign Preflight, never a user error.
@@ -71,19 +71,37 @@ READ_ONLY_ALLOWLIST: Final[tuple[tuple[str, re.Pattern[str], str], ...]] = (
     ("POST", re.compile(r"^/api/v2/leads/list$"), "list leads (read-only POST)"),
 )
 
-# Methods that can never appear in the allowlist, checked at import time so a
-# mistaken entry is caught before the package is ever used.
+# Methods that can never appear in the allowlist.
 _FORBIDDEN_METHODS: Final = frozenset({"PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
 _ALLOWED_POST_PATHS: Final = frozenset({r"^/api/v2/leads/list$"})
 
-for _method, _pattern, _ in READ_ONLY_ALLOWLIST:
-    if _method in _FORBIDDEN_METHODS:
-        raise AssertionError(f"allowlist contains a mutating method: {_method}")
-    if _method == "POST" and _pattern.pattern not in _ALLOWED_POST_PATHS:
-        raise AssertionError(
-            f"allowlist contains an undocumented POST: {_pattern.pattern}. "
-            f"Only the leads/list read endpoint may be a POST."
-        )
+
+def audit_allowlist(
+    entries: tuple[tuple[str, re.Pattern[str], str], ...] | None = None,
+) -> None:
+    """Raise if an allowlist entry could mutate anything.
+
+    Runs at import time against the real allowlist, so a mistaken entry is
+    caught before the package is ever used. Exposed as a function rather than
+    inline module code so the guard itself is testable -- an untested guard is
+    not much of a guard.
+    """
+    for method, pattern, _description in entries if entries is not None else READ_ONLY_ALLOWLIST:
+        if method in _FORBIDDEN_METHODS:
+            raise AssertionError(f"allowlist contains a mutating method: {method}")
+        if method == "POST" and pattern.pattern not in _ALLOWED_POST_PATHS:
+            raise AssertionError(
+                f"allowlist contains an undocumented POST: {pattern.pattern}. "
+                f"Only the leads/list read endpoint may be a POST."
+            )
+        if not (pattern.pattern.startswith("^") and pattern.pattern.endswith("$")):
+            raise AssertionError(
+                f"allowlist pattern is not anchored: {pattern.pattern}. "
+                f"An unanchored pattern lets a path prefix smuggle in a suffix."
+            )
+
+
+audit_allowlist()
 
 
 def is_allowed(method: str, path: str) -> bool:

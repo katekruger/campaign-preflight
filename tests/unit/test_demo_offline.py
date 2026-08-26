@@ -17,7 +17,7 @@ from campaign_preflight.providers import FixtureProvider
 from campaign_preflight.providers.fixture_provider import demo_paths
 
 
-class NetworkAccessAttempted(AssertionError):
+class NetworkAccessAttempted(AssertionError):  # noqa: N818 - reads better than ...Error
     """Raised if anything tries to open a socket during an offline test."""
 
 

@@ -19,6 +19,7 @@ Safety properties:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 import random
@@ -56,7 +57,7 @@ from .base import (
 )
 from .instantly_transport import ReadOnlyTransport, ReadOnlyViolation
 
-__all__ = ["InstantlyProvider", "CAMPAIGN_STATUS", "ACCOUNT_STATUS", "WARMUP_STATUS"]
+__all__ = ["ACCOUNT_STATUS", "CAMPAIGN_STATUS", "WARMUP_STATUS", "InstantlyProvider"]
 
 logger = logging.getLogger("campaign_preflight.instantly")
 
@@ -143,8 +144,7 @@ class InstantlyProvider(CampaignProvider):
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             transport=self._guard,
-            timeout=timeout
-            or httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0),
+            timeout=timeout or httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0),
             headers={
                 "Authorization": f"Bearer {api_key.strip()}",
                 "Content-Type": "application/json",
@@ -156,9 +156,7 @@ class InstantlyProvider(CampaignProvider):
         self._campaign_cache: dict[str, dict[str, Any]] = {}
 
     @classmethod
-    def from_env(
-        cls, *, transport: httpx.AsyncBaseTransport | None = None
-    ) -> InstantlyProvider:
+    def from_env(cls, *, transport: httpx.AsyncBaseTransport | None = None) -> InstantlyProvider:
         """Build a provider from the environment. Never accepts a key as an argument path."""
         return cls(
             api_key=os.environ.get("INSTANTLY_API_KEY", ""),
@@ -181,9 +179,7 @@ class InstantlyProvider(CampaignProvider):
     ) -> Any:
         """One retried request. Returns decoded JSON or raises ProviderError."""
         full_path = f"{API_PREFIX}{path}"
-        clean_params = (
-            {k: v for k, v in params.items() if v is not None} if params else None
-        )
+        clean_params = {k: v for k, v in params.items() if v is not None} if params else None
 
         last_error: ProviderError | None = None
         for attempt in range(1, self.max_retries + 1):
@@ -194,9 +190,7 @@ class InstantlyProvider(CampaignProvider):
             except ReadOnlyViolation:
                 raise
             except httpx.TimeoutException as exc:
-                last_error = ProviderError(
-                    f"request to {full_path} timed out", endpoint=full_path
-                )
+                last_error = ProviderError(f"request to {full_path} timed out", endpoint=full_path)
                 logger.warning(
                     "instantly request timed out",
                     extra={"endpoint": full_path, "attempt": attempt},
@@ -244,10 +238,7 @@ class InstantlyProvider(CampaignProvider):
         if status in {401, 403}:
             return ProviderAuthError(
                 f"Instantly returned {status} on {endpoint}: {message}",
-                hint=(
-                    "the API key is invalid, expired, or lacks the scope this "
-                    "endpoint needs"
-                ),
+                hint=("the API key is invalid, expired, or lacks the scope this endpoint needs"),
                 status=status,
                 endpoint=endpoint,
             )
@@ -269,10 +260,9 @@ class InstantlyProvider(CampaignProvider):
         """Sleep before a retry. Honours Retry-After, jittered, always bounded."""
         delay = min(2.0 ** (attempt - 1), MAX_RETRY_SLEEP)
         if retry_after:
-            try:
+            # A date-formatted Retry-After falls back to the exponential backoff.
+            with contextlib.suppress(ValueError):
                 delay = min(float(retry_after), MAX_RETRY_SLEEP)
-            except ValueError:
-                pass  # a date-formatted Retry-After falls back to the backoff
         # Jitter avoids a synchronized retry storm when several checks run at once.
         await asyncio.sleep(delay + random.uniform(0, 0.25))  # noqa: S311 - not crypto
 
@@ -336,9 +326,7 @@ class InstantlyProvider(CampaignProvider):
         )
         return items, True
 
-    def _capability_result(
-        self, capability: Capability, exc: ProviderError
-    ) -> ProviderResult[Any]:
+    def _capability_result(self, capability: Capability, exc: ProviderError) -> ProviderResult[Any]:
         """Map a provider error onto the right capability status."""
         if isinstance(exc, ProviderAuthError) or exc.status in {401, 402, 403}:
             return forbidden(capability, str(exc))
@@ -369,9 +357,7 @@ class InstantlyProvider(CampaignProvider):
         schedule_raw = payload.get("campaign_schedule")
         schedule = self._parse_schedule(schedule_raw if isinstance(schedule_raw, dict) else {})
         email_list = payload.get("email_list")
-        senders = tuple(
-            e for e in (normalize_email(v) for v in email_list or []) if e
-        )
+        senders = tuple(e for e in (normalize_email(v) for v in email_list or []) if e)
         return Campaign(
             id=normalize_text(payload.get("id")),
             name=normalize_text(payload.get("name")),
@@ -384,11 +370,7 @@ class InstantlyProvider(CampaignProvider):
             stop_on_auto_reply=_nullable_bool(payload.get("stop_on_auto_reply")),
             steps=self._parse_sequences(payload.get("sequences")),
             sender_emails=senders,
-            custom_variables=(
-                payload.get("custom_variables")
-                if isinstance(payload.get("custom_variables"), dict)
-                else {}
-            ),
+            custom_variables=_as_dict(payload.get("custom_variables")),
             provider_metadata=None,
             raw={},
         )
@@ -413,8 +395,8 @@ class InstantlyProvider(CampaignProvider):
         for index, entry in enumerate(entries or []):
             if not isinstance(entry, dict):
                 continue
-            timing = entry.get("timing") if isinstance(entry.get("timing"), dict) else {}
-            days_raw = entry.get("days") if isinstance(entry.get("days"), dict) else {}
+            timing = _as_dict(entry.get("timing"))
+            days_raw = _as_dict(entry.get("days"))
             days = {
                 day
                 for key, enabled in days_raw.items()
@@ -501,12 +483,8 @@ class InstantlyProvider(CampaignProvider):
 
     def _parse_lead(self, row: dict[str, Any]) -> Lead:
         email = normalize_text(row.get("email"))
-        custom = row.get("payload")
-        variables = {
-            str(k): str(v)
-            for k, v in (custom or {}).items()
-            if isinstance(custom, dict) and v not in (None, "")
-        }
+        custom = _as_dict(row.get("payload"))
+        variables = {str(k): str(v) for k, v in custom.items() if v not in (None, "")}
         # The v2 lead `status` enum's labels are not documented, so no label is
         # guessed. `timestamp_last_contact` IS documented, so prior contact is
         # derived from it instead -- a fact rather than an inference.
@@ -578,9 +556,7 @@ class InstantlyProvider(CampaignProvider):
             partial=bool(errors),
         )
 
-    async def _fetch_accounts(
-        self, emails: list[str]
-    ) -> tuple[list[Sender], list[str]]:
+    async def _fetch_accounts(self, emails: list[str]) -> tuple[list[Sender], list[str]]:
         """Fetch account records with bounded concurrency."""
         semaphore = asyncio.Semaphore(SENDER_CONCURRENCY)
 
@@ -683,9 +659,7 @@ class InstantlyProvider(CampaignProvider):
         if not campaign_id:
             return misconfigured(Capability.ANALYTICS, "no campaign id was supplied")
         try:
-            payload = await self._request(
-                "GET", "/campaigns/analytics", params={"id": campaign_id}
-            )
+            payload = await self._request("GET", "/campaigns/analytics", params={"id": campaign_id})
         except ProviderError as exc:
             return self._capability_result(Capability.ANALYTICS, exc)
         rows = payload if isinstance(payload, list) else [payload]
@@ -721,6 +695,11 @@ class InstantlyProvider(CampaignProvider):
                 "workspace_id": workspace.get("id"),
             },
         )
+
+
+def _as_dict(value: Any) -> dict[str, Any]:
+    """A mapping, or an empty one. Never None, so the model field stays typed."""
+    return dict(value) if isinstance(value, dict) else {}
 
 
 def _nullable_bool(value: Any) -> bool | None:

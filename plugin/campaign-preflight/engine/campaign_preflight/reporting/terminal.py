@@ -11,23 +11,22 @@ Wrapping uses :mod:`textwrap` so long findings stay readable at 100 columns.
 from __future__ import annotations
 
 import textwrap
-from typing import Dict, List, Optional
 
 from ..models import PreflightReport, Readiness, RuleResult, RuleStatus, Severity
 from .redaction import redact_samples, redact_text
 
-__all__ = ["render_terminal", "READINESS_STYLES"]
+__all__ = ["READINESS_STYLES", "render_terminal"]
 
 RESET = "\033[0m"
 
-READINESS_STYLES: Dict[Readiness, str] = {
+READINESS_STYLES: dict[Readiness, str] = {
     Readiness.READY: "\033[1;32m",  # bold green
     Readiness.READY_WITH_WARNINGS: "\033[1;33m",  # bold yellow
     Readiness.NOT_READY: "\033[1;31m",  # bold red
     Readiness.INCOMPLETE: "\033[1;35m",  # bold magenta
 }
 
-SECTION_STYLES: Dict[str, str] = {
+SECTION_STYLES: dict[str, str] = {
     "BLOCKERS": "\033[1;31m",
     "FAILURES": "\033[31m",
     "WARNINGS": "\033[33m",
@@ -52,15 +51,15 @@ class _Writer:
     def __init__(self, *, color: bool, width: int) -> None:
         self.color = color
         self.width = width
-        self.lines: List[str] = []
+        self.lines: list[str] = []
 
-    def line(self, text: str = "", style: Optional[str] = None) -> None:
+    def line(self, text: str = "", style: str | None = None) -> None:
         if style and self.color:
             self.lines.append(f"{style}{text}{RESET}")
         else:
             self.lines.append(text)
 
-    def wrapped(self, text: str, *, indent: str = "", style: Optional[str] = None) -> None:
+    def wrapped(self, text: str, *, indent: str = "", style: str | None = None) -> None:
         """Emit ``text`` wrapped to the writer's width, preserving an indent."""
         if not text:
             return
@@ -87,23 +86,21 @@ def _readiness_label(readiness: Readiness) -> str:
     return readiness.value.replace("_", " ")
 
 
-def _sort_key(result: RuleResult):
+def _sort_key(result: RuleResult) -> tuple[int, str]:
     return (_SEVERITY_ORDER.get(result.severity, 9), result.rule_id)
 
 
 def _finding_lines(
     result: RuleResult, *, redacted: bool, max_samples: int, verbose: bool
-) -> List[tuple]:
+) -> list[tuple[str, str]]:
     """The lines describing one finding, as ``(text, indent)`` pairs."""
     marker = " (heuristic)" if result.heuristic else ""
-    lines: List[tuple] = [
+    lines: list[tuple[str, str]] = [
         (f"[{result.rule_id}]", ""),
         (f"{redact_text(result.summary, redacted=redacted)}{marker}", ""),
     ]
 
-    samples = redact_samples(
-        result.affected_record_samples, redacted=redacted, limit=max_samples
-    )
+    samples = redact_samples(result.affected_record_samples, redacted=redacted, limit=max_samples)
     if samples:
         shown = ", ".join(samples)
         more = result.affected_record_count - len(samples)
@@ -115,9 +112,7 @@ def _finding_lines(
     if verbose and result.explanation:
         lines.append((f"Why: {redact_text(result.explanation, redacted=redacted)}", "  "))
     if result.remediation:
-        lines.append(
-            (f"Remediation: {redact_text(result.remediation, redacted=redacted)}", "  ")
-        )
+        lines.append((f"Remediation: {redact_text(result.remediation, redacted=redacted)}", "  "))
     return lines
 
 
@@ -128,7 +123,7 @@ def render_terminal(
     verbose: bool = False,
     quiet: bool = False,
     color: bool = True,
-    width: Optional[int] = None,
+    width: int | None = None,
 ) -> str:
     """Render a report as plain text. ANSI colour is applied only if ``color``."""
     out = _Writer(color=color, width=width or 100)

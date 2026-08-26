@@ -8,9 +8,8 @@ rather than guessing -- an unverifiable timezone is not a valid one.
 from __future__ import annotations
 
 from dataclasses import dataclass
-
 from datetime import datetime, time, timedelta
-from typing import Any
+from typing import ClassVar
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from ..config import PreflightConfig, RuleOptions
@@ -45,7 +44,7 @@ def _zone(name: str | None) -> ZoneInfo | None:
 
 class _ScheduleRule(Rule):
     category = RuleCategory.SCHEDULE
-    requires = (Capability.CAMPAIGN,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.CAMPAIGN,)
 
     @staticmethod
     def limit(config: PreflightConfig) -> int:
@@ -59,7 +58,9 @@ class _ScheduleRule(Rule):
         return campaign.schedule
 
     @staticmethod
-    def window_zones(schedule: CampaignSchedule, campaign: Campaign) -> list[tuple[SendingWindow, str | None]]:
+    def window_zones(
+        schedule: CampaignSchedule, campaign: Campaign
+    ) -> list[tuple[SendingWindow, str | None]]:
         return [
             (w, w.timezone_name or schedule.timezone_name or campaign.timezone_name)
             for w in schedule.windows
@@ -89,15 +90,12 @@ class MissingTimezone(_ScheduleRule):
         if not schedule.windows:
             if schedule.timezone_name or campaign.timezone_name:
                 return self.passed(
-                    f"Campaign timezone is "
-                    f"{schedule.timezone_name or campaign.timezone_name}."
+                    f"Campaign timezone is {schedule.timezone_name or campaign.timezone_name}."
                 )
             return self.failed("No timezone is declared anywhere on the campaign.")
         missing = [w.name for w, tz in self.window_zones(schedule, campaign) if not tz]
         if not missing:
-            return self.passed(
-                f"All {len(schedule.windows)} sending window(s) declare a timezone."
-            )
+            return self.passed(f"All {len(schedule.windows)} sending window(s) declare a timezone.")
         return self.failed(
             f"{len(missing)} of {len(schedule.windows)} sending window(s) declare no timezone.",
             affected=len(missing),
@@ -132,15 +130,15 @@ class InvalidTimezone(_ScheduleRule):
         if campaign.timezone_name:
             names.setdefault(campaign.timezone_name, "campaign")
         if not names:
-            return self.not_applicable(
-                "No timezone is declared (see schedule.missing_timezone)."
-            )
+            return self.not_applicable("No timezone is declared (see schedule.missing_timezone).")
         if _zone("UTC") is None:  # pragma: no cover - only on a broken tzdata install
             return self.unknown(
                 "No IANA timezone database is available on this machine, so "
                 "timezone names cannot be validated."
             )
-        invalid = sorted(f"{name} (on {where})" for name, where in names.items() if _zone(name) is None)
+        invalid = sorted(
+            f"{name} (on {where})" for name, where in names.items() if _zone(name) is None
+        )
         if not invalid:
             return self.passed(f"All {len(names)} declared timezone(s) are valid IANA zones.")
         return self.failed(
@@ -180,9 +178,7 @@ class OutsideBusinessHours(_ScheduleRule):
         start_bound = parse_clock_time(config.settings.business_hours_start)
         end_bound = parse_clock_time(config.settings.business_hours_end)
         if start_bound is None or end_bound is None:
-            return self.unknown(
-                "settings.business_hours_start/end are not parseable as HH:MM."
-            )
+            return self.unknown("settings.business_hours_start/end are not parseable as HH:MM.")
         usable = [w for w in schedule.windows if w.start and w.end]
         if not usable:
             return self.not_applicable("No complete sending window to check.")
@@ -359,9 +355,7 @@ class WindowStartAfterEnd(_ScheduleRule):
             if window.end == window.start:
                 equal.append(f"{window.name}: start and end are both {window.start:%H:%M}")
             elif window.end < window.start:
-                inverted.append(
-                    f"{window.name}: {window.start:%H:%M} to {window.end:%H:%M}"
-                )
+                inverted.append(f"{window.name}: {window.start:%H:%M} to {window.end:%H:%M}")
         if equal:
             return self.failed(
                 f"{len(equal)} sending window(s) have a zero-length duration.",
@@ -411,16 +405,18 @@ class DaylightSavingTransition(_ScheduleRule):
             return schedule
         campaign = ctx.campaign
         assert campaign is not None
-        zones = {
-            tz for _, tz in self.window_zones(schedule, campaign) if tz
-        } or ({campaign.timezone_name} if campaign.timezone_name else set())
+        zones = {tz for _, tz in self.window_zones(schedule, campaign) if tz} or (
+            {campaign.timezone_name} if campaign.timezone_name else set()
+        )
         if not zones:
             return self.not_applicable("No timezone is declared, so DST cannot be assessed.")
 
         start = schedule.start_date or ctx.generated_at.date()
         end = schedule.end_date or (start + timedelta(days=options.lookahead_days))
         if end < start:
-            return self.not_applicable("The date range is incoherent (see schedule.start_after_end).")
+            return self.not_applicable(
+                "The date range is incoherent (see schedule.start_after_end)."
+            )
         span_days = min((end - start).days, 366)
 
         transitions: list[str] = []
@@ -432,7 +428,9 @@ class DaylightSavingTransition(_ScheduleRule):
                 continue
             previous = datetime.combine(start, time(12, 0), tzinfo=zone).utcoffset()
             for day_offset in range(1, span_days + 1):
-                moment = datetime.combine(start + timedelta(days=day_offset), time(12, 0), tzinfo=zone)
+                moment = datetime.combine(
+                    start + timedelta(days=day_offset), time(12, 0), tzinfo=zone
+                )
                 current = moment.utcoffset()
                 if current != previous:
                     transitions.append(f"{name}: offset changes on {moment.date()}")
@@ -448,8 +446,7 @@ class DaylightSavingTransition(_ScheduleRule):
                 f"{len(zones)} timezone(s)."
             )
         return self.warn(
-            f"{len(transitions)} daylight-saving transition(s) fall inside the "
-            f"campaign window.",
+            f"{len(transitions)} daylight-saving transition(s) fall inside the campaign window.",
             severity=Severity.INFO,
             affected=len(transitions),
             samples=self.sample(transitions, self.limit(config)),
@@ -482,9 +479,9 @@ class TimezoneMismatch(_ScheduleRule):
             return schedule
         campaign = ctx.campaign
         assert campaign is not None
-        declared = {
-            tz for _, tz in self.window_zones(schedule, campaign) if tz
-        } or ({campaign.timezone_name} if campaign.timezone_name else set())
+        declared = {tz for _, tz in self.window_zones(schedule, campaign) if tz} or (
+            {campaign.timezone_name} if campaign.timezone_name else set()
+        )
         if not declared:
             return self.unknown("No timezone is declared, so it cannot be compared.")
 
@@ -498,16 +495,16 @@ class TimezoneMismatch(_ScheduleRule):
                 probe = datetime.combine(
                     schedule.start_date or ctx.generated_at.date(), time(12, 0)
                 )
-                if probe.replace(tzinfo=zone).utcoffset() == probe.replace(
-                    tzinfo=target_zone
-                ).utcoffset():
+                if (
+                    probe.replace(tzinfo=zone).utcoffset()
+                    == probe.replace(tzinfo=target_zone).utcoffset()
+                ):
                     continue  # different name, same wall clock right now
             mismatched.append(name)
         if not mismatched:
             return self.passed(f"The campaign sends on {target} time as configured.")
         return self.warn(
-            f"The campaign uses {', '.join(mismatched)} but the configured target "
-            f"is {target}.",
+            f"The campaign uses {', '.join(mismatched)} but the configured target is {target}.",
             affected=len(mismatched),
             samples=self.sample(mismatched, self.limit(config)),
             metadata={"declared": sorted(declared), "target": target},

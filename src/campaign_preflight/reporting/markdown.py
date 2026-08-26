@@ -46,15 +46,11 @@ def _finding_block(result: RuleResult, *, redacted: bool, max_samples: int) -> l
         redact_text(result.summary, redacted=redacted),
         "",
     ]
-    samples = redact_samples(
-        result.affected_record_samples, redacted=redacted, limit=max_samples
-    )
+    samples = redact_samples(result.affected_record_samples, redacted=redacted, limit=max_samples)
     if samples:
         more = result.affected_record_count - len(samples)
         suffix = f" _(+{more} more)_" if more > 0 else ""
-        lines.append(
-            "- **Affected:** " + ", ".join(f"`{s}`" for s in samples) + suffix
-        )
+        lines.append("- **Affected:** " + ", ".join(f"`{s}`" for s in samples) + suffix)
     for item in redact_samples(result.evidence, redacted=redacted, limit=max_samples):
         lines.append(f"- **Evidence:** {redact_text(item, redacted=redacted)}")
     if result.remediation:
@@ -63,9 +59,7 @@ def _finding_block(result: RuleResult, *, redacted: bool, max_samples: int) -> l
     return lines
 
 
-def render_markdown(
-    report: PreflightReport, *, max_samples: int = 5, verbose: bool = False
-) -> str:
+def render_markdown(report: PreflightReport, *, max_samples: int = 5, verbose: bool = False) -> str:
     """Render a report as GitHub-flavoured Markdown."""
     redacted = report.redacted
     out: list[str] = []
@@ -74,8 +68,10 @@ def render_markdown(
     campaign = report.campaign_name or report.campaign_id or "unknown campaign"
     add(f"# Campaign Preflight: {_escape(campaign)}")
     add("")
-    add(f"**{_BADGE[report.readiness]}** - score {report.score}/100, "
-        f"confidence {report.confidence.value}")
+    add(
+        f"**{_BADGE[report.readiness]}** - score {report.score}/100, "
+        f"confidence {report.confidence.value}"
+    )
     add("")
     add("| | |")
     add("|---|---|")
@@ -84,10 +80,14 @@ def render_markdown(
     add(f"| Leads checked | {report.lead_count}{'+' if report.lead_count_is_partial else ''} |")
     add(f"| Senders checked | {report.sender_count} |")
     add(f"| Suppression entries | {report.suppression_count} |")
-    add(f"| Blockers / failures / warnings | "
-        f"{report.blocker_count} / {report.failure_count} / {report.warning_count} |")
-    add(f"| Unknown / passed / n-a | "
-        f"{report.unknown_count} / {report.passed_count} / {report.not_applicable_count} |")
+    add(
+        f"| Blockers / failures / warnings | "
+        f"{report.blocker_count} / {report.failure_count} / {report.warning_count} |"
+    )
+    add(
+        f"| Unknown / passed / n-a | "
+        f"{report.unknown_count} / {report.passed_count} / {report.not_applicable_count} |"
+    )
     add(f"| Generated | {report.generated_at.isoformat().replace('+00:00', 'Z')} |")
     add(f"| Tool version | {report.tool_version} |")
     add("")
@@ -98,11 +98,7 @@ def render_markdown(
         ("Blockers", [r for r in report.results if r.is_blocking]),
         (
             "Failures",
-            [
-                r
-                for r in report.results
-                if r.status is RuleStatus.FAIL and not r.is_blocking
-            ],
+            [r for r in report.results if r.status is RuleStatus.FAIL and not r.is_blocking],
         ),
         ("Warnings", [r for r in report.results if r.status is RuleStatus.WARN]),
         ("Unknown", [r for r in report.results if r.status is RuleStatus.UNKNOWN]),
@@ -147,8 +143,10 @@ def render_markdown(
             )
         add("")
     if report.score_breakdown.critical_unknown_rule_ids:
-        add("**Critical checks that could not run:** "
-            + ", ".join(f"`{r}`" for r in report.score_breakdown.critical_unknown_rule_ids))
+        add(
+            "**Critical checks that could not run:** "
+            + ", ".join(f"`{r}`" for r in report.score_breakdown.critical_unknown_rule_ids)
+        )
         add("")
 
     if report.limitations:

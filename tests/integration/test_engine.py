@@ -8,19 +8,15 @@ from pathlib import Path
 import pytest
 
 from campaign_preflight.config import PreflightConfig
-from campaign_preflight.engine import evaluate, gather_context, run_preflight
+from campaign_preflight.engine import gather_context, run_preflight
 from campaign_preflight.models import (
     Campaign,
     Capability,
-    CapabilityStatus,
-    Lead,
     Readiness,
     RuleStatus,
-    Sender,
-    SuppressionEntry,
 )
 from campaign_preflight.providers import CSVProvider, FixtureProvider
-from campaign_preflight.providers.base import failed, forbidden, misconfigured, ok, unsupported
+from campaign_preflight.providers.base import failed, forbidden, misconfigured, ok
 from helpers import make_campaign, make_lead, make_leads, make_sender
 
 PINNED = datetime(2026, 3, 1, tzinfo=timezone.utc)

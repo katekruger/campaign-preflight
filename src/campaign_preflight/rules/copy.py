@@ -9,10 +9,10 @@ or an explicitly labelled heuristic.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import re
 from collections import Counter
+from dataclasses import dataclass
+from typing import ClassVar
 
 from ..config import PreflightConfig, RuleOptions
 from ..models import (
@@ -57,7 +57,7 @@ def _enabled_steps(campaign: Campaign) -> list[CampaignStep]:
 
 class _CopyRule(Rule):
     category = RuleCategory.COPY
-    requires = (Capability.CAMPAIGN,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.CAMPAIGN,)
 
     @staticmethod
     def limit(config: PreflightConfig) -> int:
@@ -69,8 +69,7 @@ class _CopyRule(Rule):
         steps = _enabled_steps(campaign)
         if not steps:
             return self.not_applicable(
-                "The campaign has no enabled steps to check "
-                "(see campaign.has_steps)."
+                "The campaign has no enabled steps to check (see campaign.has_steps)."
             )
         return steps
 
@@ -143,7 +142,7 @@ class UnresolvedCopyTokens(_CopyRule):
     title = "Copy references only variables your contacts have"
     category = RuleCategory.COPY
     severity = Severity.HIGH
-    requires = (Capability.CAMPAIGN, Capability.LEADS)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.CAMPAIGN, Capability.LEADS)
     description = (
         "Cross-references every template variable used in the copy against the "
         "fields actually present on your contacts. A variable no contact carries "
@@ -166,9 +165,7 @@ class UnresolvedCopyTokens(_CopyRule):
         if not used:
             return self.passed("The copy uses no template variables.")
         if not ctx.leads:
-            return self.unknown(
-                "No contacts are available to check the copy's variables against."
-            )
+            return self.unknown("No contacts are available to check the copy's variables against.")
         campaign = ctx.campaign
         assert campaign is not None
         # A campaign-level custom variable has one value for the whole campaign,
@@ -230,12 +227,9 @@ class MissingRequiredCopyVariables(_CopyRule):
         }
         unused = [name for name in required if name.strip().lower() not in used]
         if not unused:
-            return self.passed(
-                f"The copy references all {len(required)} required variable(s)."
-            )
+            return self.passed(f"The copy references all {len(required)} required variable(s).")
         return self.warn(
-            f"{len(unused)} required variable(s) are never used in the copy: "
-            f"{', '.join(unused)}.",
+            f"{len(unused)} required variable(s) are never used in the copy: {', '.join(unused)}.",
             affected=len(unused),
             samples=unused,
         )
@@ -358,12 +352,9 @@ class ExcessiveLinks(_CopyRule):
             if count > options.max_links_per_step:
                 problems.append(f"{_step_label(step)}: {count} links")
         if not problems:
-            return self.passed(
-                f"No step carries more than {options.max_links_per_step} links."
-            )
+            return self.passed(f"No step carries more than {options.max_links_per_step} links.")
         return self.warn(
-            f"{len(problems)} step variant(s) carry more than "
-            f"{options.max_links_per_step} links.",
+            f"{len(problems)} step variant(s) carry more than {options.max_links_per_step} links.",
             affected=len(problems),
             samples=self.sample(problems, self.limit(config)),
         )
@@ -389,12 +380,18 @@ class GenerationArtifacts(_CopyRule):
         ("markdown code fence", re.compile(r"```")),
         # MULTILINE: the preamble lands at the top of the *body*, which is the
         # second line of the text this rule scans.
-        ("model preamble", re.compile(
-            r"(?im)^\s*(?:sure[,!]|certainly[,!]|here(?:'s| is) (?:a|the|your)\b|"
-            r"as an ai\b|i(?:'m| am) (?:an? )?(?:ai|language model)\b)"
-        )),
+        (
+            "model preamble",
+            re.compile(
+                r"(?im)^\s*(?:sure[,!]|certainly[,!]|here(?:'s| is) (?:a|the|your)\b|"
+                r"as an ai\b|i(?:'m| am) (?:an? )?(?:ai|language model)\b)"
+            ),
+        ),
         ("unrendered markdown link", re.compile(r"\[[^\]]{1,80}\]\((?:https?://)?[^)]{1,200}\)")),
-        ("bracketed instruction", re.compile(r"\[(?:insert|add|your|company|name|topic)[^\]]{0,40}\]", re.IGNORECASE)),
+        (
+            "bracketed instruction",
+            re.compile(r"\[(?:insert|add|your|company|name|topic)[^\]]{0,40}\]", re.I),
+        ),
     )
 
     def evaluate(
@@ -438,7 +435,10 @@ class PlaceholderCopy(_CopyRule):
         ("lorem ipsum", re.compile(r"(?i)\blorem ipsum\b")),
         ("example domain", re.compile(r"(?i)\b(?:example|test)\.(?:com|org|net)\b")),
         ("placeholder name", re.compile(r"(?i)\b(?:john doe|jane doe|acme (?:inc|corp)\b)")),
-        ("angle-bracket placeholder", re.compile(r"<(?:your|company|name|insert)[^>]{0,40}>", re.IGNORECASE)),
+        (
+            "angle-bracket placeholder",
+            re.compile(r"<(?:your|company|name|insert)[^>]{0,40}>", re.I),
+        ),
     )
 
     def evaluate(
@@ -592,9 +592,7 @@ class StopCondition(_CopyRule):
         steps = _enabled_steps(campaign)
         distinct = len({s.index for s in steps})
         if distinct <= 1:
-            return self.not_applicable(
-                "Single-step campaign: there is no follow-up to stop."
-            )
+            return self.not_applicable("Single-step campaign: there is no follow-up to stop.")
         if campaign.stop_on_reply is None:
             return self.unknown(
                 "The stop-on-reply setting is unavailable, so the sequence's stop "
@@ -639,8 +637,7 @@ class IdenticalSteps(_CopyRule):
         assert isinstance(options, IdenticalStepsOptions)
         if options.treat_identical_body_as not in {"warn", "pass"}:
             return self.unknown(
-                f"Unsupported option treat_identical_body_as="
-                f"{options.treat_identical_body_as!r}"
+                f"Unsupported option treat_identical_body_as={options.treat_identical_body_as!r}"
             )
         steps = self.steps_or_na(ctx)
         if isinstance(steps, RuleResult):
@@ -654,9 +651,7 @@ class IdenticalSteps(_CopyRule):
         duplicates = [group for group in seen.values() if len(group) > 1]
         if not duplicates:
             return self.passed(f"All {len(steps)} step variants have distinct copy.")
-        labels = [
-            " == ".join(_step_label(s) for s in group) for group in duplicates
-        ]
+        labels = [" == ".join(_step_label(s) for s in group) for group in duplicates]
         count = sum(len(group) for group in duplicates)
         if options.treat_identical_body_as == "pass":
             return self.passed(

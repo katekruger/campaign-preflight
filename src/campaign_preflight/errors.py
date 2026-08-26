@@ -12,14 +12,14 @@ import re
 from enum import IntEnum
 
 __all__ = [
-    "ExitCode",
-    "PreflightError",
     "ConfigurationError",
+    "ExitCode",
     "InputError",
-    "ProviderError",
+    "InternalError",
+    "PreflightError",
     "ProviderAuthError",
     "ProviderCapabilityError",
-    "InternalError",
+    "ProviderError",
     "redact_secrets",
 ]
 

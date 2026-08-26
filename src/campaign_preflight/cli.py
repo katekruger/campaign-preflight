@@ -25,8 +25,9 @@ import asyncio
 import json as json_module
 import os
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any
 
 from . import __version__
 from .config import PreflightConfig, load_config, option_defaults, safe_resolve
@@ -42,7 +43,7 @@ from .errors import (
 from .models import PreflightReport, Readiness, RuleCategory, RuleStatus, Severity
 from .providers import CampaignProvider, CSVProvider, FixtureProvider
 
-__all__ = ["main", "build_parser", "exit_code_for", "run"]
+__all__ = ["build_parser", "exit_code_for", "main", "run"]
 
 FORMATS = ("terminal", "json", "markdown")
 FAIL_ON_LEVELS = ("none", "warning", "high", "blocker")
@@ -176,7 +177,7 @@ def _emit(report: PreflightReport, args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _load_config_or_fail(path: Optional[str]) -> PreflightConfig:
+def _load_config_or_fail(path: str | None) -> PreflightConfig:
     try:
         return load_config(path)
     except (ConfigurationError, InputError) as exc:
@@ -188,9 +189,9 @@ async def _run_and_close(
     provider: CampaignProvider,
     config: PreflightConfig,
     *,
-    campaign_id: Optional[str],
+    campaign_id: str | None,
     redacted: bool,
-    lead_limit: Optional[int],
+    lead_limit: int | None,
 ) -> PreflightReport:
     try:
         return await run_preflight(
@@ -209,8 +210,8 @@ def _execute(
     config: PreflightConfig,
     args: argparse.Namespace,
     *,
-    campaign_id: Optional[str] = None,
-    lead_limit: Optional[int] = None,
+    campaign_id: str | None = None,
+    lead_limit: int | None = None,
 ) -> int:
     """Run a preflight, print it, and return the exit code."""
     try:
@@ -305,7 +306,7 @@ def cmd_rules_list(args: argparse.Namespace) -> int:
     rules = [r for r in all_rules() if category is None or r.category is category]
 
     if args.json:
-        payload: List[Dict[str, Any]] = [
+        payload: list[dict[str, Any]] = [
             {
                 "rule_id": r.rule_id,
                 "version": r.version,
@@ -320,7 +321,7 @@ def cmd_rules_list(args: argparse.Namespace) -> int:
         print(json_module.dumps(payload, indent=2))
         return 0
 
-    current: Optional[str] = None
+    current: str | None = None
     for rule in rules:
         if rule.category.value != current:
             current = rule.category.value
@@ -463,6 +464,12 @@ def _add_report_options(parser: argparse.ArgumentParser, *, default_fail_on: str
     parser.add_argument("-c", "--config", metavar="PATH", help="Rules configuration file.")
 
 
+def _print_rules_help(args: argparse.Namespace) -> int:
+    """`rules` with no subcommand prints its own help."""
+    build_parser().parse_args(["rules", "--help"])
+    return 0  # pragma: no cover - --help exits first
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="campaign-preflight",
@@ -523,11 +530,9 @@ def build_parser() -> argparse.ArgumentParser:
     rules_explain = rules_sub.add_parser("explain", help="Explain one rule.")
     rules_explain.add_argument("rule_id", help="e.g. campaign.daily_volume")
     rules_explain.set_defaults(handler=cmd_rules_explain)
-    rules.set_defaults(handler=lambda args: (rules.print_help(), 0)[1])
+    rules.set_defaults(handler=_print_rules_help)
 
-    validate = subparsers.add_parser(
-        "validate-config", help="Validate a rules configuration file."
-    )
+    validate = subparsers.add_parser("validate-config", help="Validate a rules configuration file.")
     validate.add_argument("path", help="Path to the configuration file.")
     validate.set_defaults(handler=cmd_validate_config)
 
@@ -537,7 +542,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def run(argv: Optional[Sequence[str]] = None) -> int:
+def run(argv: Sequence[str] | None = None) -> int:
     """Parse arguments and dispatch. Returns the exit code."""
     parser = build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
@@ -560,10 +565,8 @@ def main() -> None:
     except PreflightError as exc:  # pragma: no cover - defence in depth
         _error(f"Error: {exc}")
         raise SystemExit(int(exc.exit_code)) from exc
-    except Exception as exc:  # noqa: BLE001 - never print a raw traceback with data in it
-        _error(
-            f"Internal error: {type(exc).__name__}: {redact_secrets(str(exc))[:200]}"
-        )
+    except Exception as exc:
+        _error(f"Internal error: {type(exc).__name__}: {redact_secrets(str(exc))[:200]}")
         raise SystemExit(int(ExitCode.INTERNAL_ERROR)) from exc
 
 

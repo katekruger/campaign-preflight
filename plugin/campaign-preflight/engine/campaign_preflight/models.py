@@ -21,38 +21,38 @@ import json
 from dataclasses import dataclass, field, fields
 from datetime import date, datetime, time, timezone
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 __all__ = [
     "REPORT_SCHEMA_VERSION",
-    "utcnow",
-    "as_tuple",
-    "as_frozenset",
-    "to_builtin",
-    "RuleStatus",
-    "Severity",
     "SEVERITY_ORDER",
-    "Readiness",
-    "Confidence",
-    "RuleCategory",
-    "CapabilityStatus",
-    "Capability",
-    "CapabilityReport",
-    "SourceEvidence",
-    "PersonalizationClaim",
-    "SendingWindow",
+    "Campaign",
     "CampaignSchedule",
     "CampaignStep",
-    "Sender",
+    "Capability",
+    "CapabilityReport",
+    "CapabilityStatus",
+    "Confidence",
     "Lead",
-    "SuppressionEntry",
-    "ProviderMetadata",
-    "Campaign",
+    "PersonalizationClaim",
     "PreflightContext",
-    "RuleResult",
-    "ScoreDeduction",
-    "ScoreBreakdown",
     "PreflightReport",
+    "ProviderMetadata",
+    "Readiness",
+    "RuleCategory",
+    "RuleResult",
+    "RuleStatus",
+    "ScoreBreakdown",
+    "ScoreDeduction",
+    "Sender",
+    "SendingWindow",
+    "Severity",
+    "SourceEvidence",
+    "SuppressionEntry",
+    "as_frozenset",
+    "as_tuple",
+    "to_builtin",
+    "utcnow",
 ]
 
 REPORT_SCHEMA_VERSION = "1.0.0"
@@ -64,7 +64,7 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def as_tuple(value: Any) -> Tuple[Any, ...]:
+def as_tuple(value: Any) -> tuple[Any, ...]:
     """Coerce a sequence to a tuple so a model field cannot be mutated in place."""
     if value is None:
         return ()
@@ -75,7 +75,7 @@ def as_tuple(value: Any) -> Tuple[Any, ...]:
     return (value,)
 
 
-def as_frozenset(value: Any) -> frozenset:
+def as_frozenset(value: Any) -> frozenset[int]:
     if value is None:
         return frozenset()
     if isinstance(value, frozenset):
@@ -130,7 +130,7 @@ class RuleStatus(str, Enum):
     is never the same thing as passing.
     """
 
-    PASS = "PASS"
+    PASS = "PASS"  # noqa: S105 - a rule status, not a credential
     WARN = "WARN"
     FAIL = "FAIL"
     UNKNOWN = "UNKNOWN"
@@ -147,7 +147,7 @@ class Severity(str, Enum):
     BLOCKER = "BLOCKER"
 
 
-SEVERITY_ORDER: Dict[Severity, int] = {
+SEVERITY_ORDER: dict[Severity, int] = {
     Severity.INFO: 0,
     Severity.LOW: 1,
     Severity.MEDIUM: 2,
@@ -222,8 +222,8 @@ class CapabilityReport:
 
     capability: Capability
     status: CapabilityStatus
-    detail: Optional[str] = None
-    record_count: Optional[int] = None
+    detail: str | None = None
+    record_count: int | None = None
 
     @property
     def is_ok(self) -> bool:
@@ -244,13 +244,13 @@ class SourceEvidence:
     """
 
     evidence_id: str
-    lead_ref: Optional[str] = None
-    source_url: Optional[str] = None
-    title: Optional[str] = None
-    retrieved_at: Optional[datetime] = None
+    lead_ref: str | None = None
+    source_url: str | None = None
+    title: str | None = None
+    retrieved_at: datetime | None = None
     excerpt: str = ""
-    content_hash: Optional[str] = None
-    company_name: Optional[str] = None
+    content_hash: str | None = None
+    company_name: str | None = None
 
     def __post_init__(self) -> None:
         if self.retrieved_at is not None and self.retrieved_at.tzinfo is None:
@@ -264,8 +264,8 @@ class PersonalizationClaim:
     claim_id: str
     lead_ref: str
     text: str
-    evidence_ids: Tuple[str, ...] = ()
-    numeric_values: Tuple[str, ...] = ()
+    evidence_ids: tuple[str, ...] = ()
+    numeric_values: tuple[str, ...] = ()
     source_field: str = "personalization"
 
     def __post_init__(self) -> None:
@@ -283,12 +283,12 @@ class SendingWindow:
     """One named sending window within a campaign schedule."""
 
     name: str = "default"
-    start: Optional[time] = None
-    end: Optional[time] = None
-    days: frozenset = field(default_factory=frozenset)
+    start: time | None = None
+    end: time | None = None
+    days: frozenset[int] = field(default_factory=frozenset)
     """Active weekday numbers, ISO-style 0=Sunday .. 6=Saturday."""
-    timezone_name: Optional[str] = None
-    raw_timezone: Optional[str] = None
+    timezone_name: str | None = None
+    raw_timezone: str | None = None
 
     def __post_init__(self) -> None:
         _freeze(self, "days", as_frozenset(self.days))
@@ -302,11 +302,11 @@ class SendingWindow:
 class CampaignSchedule:
     """When the campaign is allowed to send."""
 
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
-    windows: Tuple[SendingWindow, ...] = ()
-    timezone_name: Optional[str] = None
-    raw: Dict[str, Any] = field(default_factory=dict)
+    start_date: date | None = None
+    end_date: date | None = None
+    windows: tuple[SendingWindow, ...] = ()
+    timezone_name: str | None = None
+    raw: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         _freeze(self, "windows", as_tuple(self.windows))
@@ -318,8 +318,8 @@ class CampaignStep:
 
     index: int
     step_type: str = "email"
-    delay: Optional[float] = None
-    delay_unit: Optional[str] = None
+    delay: float | None = None
+    delay_unit: str | None = None
     subject: str = ""
     body: str = ""
     variant_index: int = 0
@@ -331,15 +331,15 @@ class Sender:
     """A sending mailbox attached to the campaign."""
 
     email: str
-    display_name: Optional[str] = None
-    enabled: Optional[bool] = None
-    status_label: Optional[str] = None
-    status_is_error: Optional[bool] = None
-    daily_limit: Optional[int] = None
-    health_score: Optional[float] = None
-    warmup_status: Optional[str] = None
-    setup_pending: Optional[bool] = None
-    provider: Optional[str] = None
+    display_name: str | None = None
+    enabled: bool | None = None
+    status_label: str | None = None
+    status_is_error: bool | None = None
+    daily_limit: int | None = None
+    health_score: float | None = None
+    warmup_status: str | None = None
+    setup_pending: bool | None = None
+    provider: str | None = None
     raw_status: Any = None
 
 
@@ -347,23 +347,23 @@ class Sender:
 class Lead:
     """A normalized contact. Every optional field may legitimately be absent."""
 
-    id: Optional[str] = None
-    email: Optional[str] = None
-    normalized_email: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    company_name: Optional[str] = None
-    company_domain: Optional[str] = None
-    job_title: Optional[str] = None
-    country: Optional[str] = None
-    region: Optional[str] = None
-    personalization: Optional[str] = None
-    custom_variables: Dict[str, str] = field(default_factory=dict)
-    assigned_sender: Optional[str] = None
-    source_row: Optional[int] = None
-    source_name: Optional[str] = None
-    suppressed: Optional[bool] = None
-    status_label: Optional[str] = None
+    id: str | None = None
+    email: str | None = None
+    normalized_email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    company_name: str | None = None
+    company_domain: str | None = None
+    job_title: str | None = None
+    country: str | None = None
+    region: str | None = None
+    personalization: str | None = None
+    custom_variables: dict[str, str] = field(default_factory=dict)
+    assigned_sender: str | None = None
+    source_row: int | None = None
+    source_name: str | None = None
+    suppressed: bool | None = None
+    status_label: str | None = None
 
     @property
     def label(self) -> str:
@@ -371,7 +371,7 @@ class Lead:
         return self.email or self.id or (f"row {self.source_row}" if self.source_row else "?")
 
     @property
-    def email_domain(self) -> Optional[str]:
+    def email_domain(self) -> str | None:
         if self.normalized_email and "@" in self.normalized_email:
             return self.normalized_email.rsplit("@", 1)[1]
         return None
@@ -383,8 +383,8 @@ class SuppressionEntry:
 
     value: str
     is_domain: bool = False
-    reason: Optional[str] = None
-    source: Optional[str] = None
+    reason: str | None = None
+    source: str | None = None
 
 
 @dataclass(frozen=True)
@@ -392,18 +392,18 @@ class ProviderMetadata:
     """Which provider produced this context, and what it could see."""
 
     name: str
-    version: Optional[str] = None
-    base_url: Optional[str] = None
+    version: str | None = None
+    base_url: str | None = None
     read_only: bool = True
-    capabilities: Tuple[CapabilityReport, ...] = ()
-    errors: Tuple[str, ...] = ()
+    capabilities: tuple[CapabilityReport, ...] = ()
+    errors: tuple[str, ...] = ()
     fetched_at: datetime = field(default_factory=utcnow)
 
     def __post_init__(self) -> None:
         _freeze(self, "capabilities", as_tuple(self.capabilities))
         _freeze(self, "errors", as_tuple(self.errors))
 
-    def capability(self, cap: Capability) -> Optional[CapabilityReport]:
+    def capability(self, cap: Capability) -> CapabilityReport | None:
         for report in self.capabilities:
             if report.capability is cap:
                 return report
@@ -414,21 +414,21 @@ class ProviderMetadata:
 class Campaign:
     """The campaign under inspection, provider-agnostic."""
 
-    id: Optional[str] = None
-    name: Optional[str] = None
-    status: Optional[str] = None
+    id: str | None = None
+    name: str | None = None
+    status: str | None = None
     raw_status: Any = None
-    timezone_name: Optional[str] = None
-    schedule: Optional[CampaignSchedule] = None
-    daily_limit: Optional[int] = None
-    stop_on_reply: Optional[bool] = None
-    stop_on_auto_reply: Optional[bool] = None
-    steps: Tuple[CampaignStep, ...] = ()
-    sender_emails: Tuple[str, ...] = ()
-    custom_variables: Dict[str, Any] = field(default_factory=dict)
-    lead_count_hint: Optional[int] = None
-    provider_metadata: Optional[ProviderMetadata] = None
-    raw: Dict[str, Any] = field(default_factory=dict)
+    timezone_name: str | None = None
+    schedule: CampaignSchedule | None = None
+    daily_limit: int | None = None
+    stop_on_reply: bool | None = None
+    stop_on_auto_reply: bool | None = None
+    steps: tuple[CampaignStep, ...] = ()
+    sender_emails: tuple[str, ...] = ()
+    custom_variables: dict[str, Any] = field(default_factory=dict)
+    lead_count_hint: int | None = None
+    provider_metadata: ProviderMetadata | None = None
+    raw: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         _freeze(self, "steps", as_tuple(self.steps))
@@ -449,16 +449,16 @@ class PreflightContext:
     """
 
     provider: ProviderMetadata
-    campaign: Optional[Campaign] = None
-    leads: Tuple[Lead, ...] = ()
-    senders: Tuple[Sender, ...] = ()
-    suppressions: Tuple[SuppressionEntry, ...] = ()
-    evidence: Tuple[SourceEvidence, ...] = ()
-    claims: Tuple[PersonalizationClaim, ...] = ()
-    analytics: Dict[str, Any] = field(default_factory=dict)
+    campaign: Campaign | None = None
+    leads: tuple[Lead, ...] = ()
+    senders: tuple[Sender, ...] = ()
+    suppressions: tuple[SuppressionEntry, ...] = ()
+    evidence: tuple[SourceEvidence, ...] = ()
+    claims: tuple[PersonalizationClaim, ...] = ()
+    analytics: dict[str, Any] = field(default_factory=dict)
     generated_at: datetime = field(default_factory=utcnow)
-    input_warnings: Tuple[str, ...] = ()
-    lead_total_hint: Optional[int] = None
+    input_warnings: tuple[str, ...] = ()
+    lead_total_hint: int | None = None
 
     def __post_init__(self) -> None:
         for name in ("leads", "senders", "suppressions", "evidence", "claims", "input_warnings"):
@@ -468,7 +468,7 @@ class PreflightContext:
         report = self.provider.capability(cap)
         return report.status if report else CapabilityStatus.UNSUPPORTED
 
-    def capability_detail(self, cap: Capability) -> Optional[str]:
+    def capability_detail(self, cap: Capability) -> str | None:
         report = self.provider.capability(cap)
         return report.detail if report else None
 
@@ -493,10 +493,10 @@ class RuleResult:
     summary: str
     explanation: str = ""
     affected_record_count: int = 0
-    affected_record_samples: Tuple[str, ...] = ()
-    evidence: Tuple[str, ...] = ()
+    affected_record_samples: tuple[str, ...] = ()
+    evidence: tuple[str, ...] = ()
     remediation: str = ""
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     heuristic: bool = False
     """True when the rule encodes a judgement call rather than a hard fact."""
 
@@ -508,7 +508,7 @@ class RuleResult:
     def is_blocking(self) -> bool:
         return self.status is RuleStatus.FAIL and self.severity is Severity.BLOCKER
 
-    def with_severity(self, severity: Severity) -> "RuleResult":
+    def with_severity(self, severity: Severity) -> RuleResult:
         return dataclasses.replace(self, severity=severity)
 
 
@@ -528,11 +528,11 @@ class ScoreBreakdown:
     """The full, printable derivation of the readiness score."""
 
     starting_score: float = 100.0
-    deductions: Tuple[ScoreDeduction, ...] = ()
+    deductions: tuple[ScoreDeduction, ...] = ()
     final_score: int = 100
     confidence: Confidence = Confidence.HIGH
-    excluded_rule_ids: Tuple[str, ...] = ()
-    critical_unknown_rule_ids: Tuple[str, ...] = ()
+    excluded_rule_ids: tuple[str, ...] = ()
+    critical_unknown_rule_ids: tuple[str, ...] = ()
     explanation: str = ""
 
     def __post_init__(self) -> None:
@@ -553,47 +553,45 @@ class PreflightReport:
     confidence: Confidence
     report_schema_version: str = REPORT_SCHEMA_VERSION
     provider_read_only: bool = True
-    campaign_id: Optional[str] = None
-    campaign_name: Optional[str] = None
-    campaign_status: Optional[str] = None
+    campaign_id: str | None = None
+    campaign_name: str | None = None
+    campaign_status: str | None = None
     lead_count: int = 0
     lead_count_is_partial: bool = False
     sender_count: int = 0
     suppression_count: int = 0
-    results: Tuple[RuleResult, ...] = ()
+    results: tuple[RuleResult, ...] = ()
     blocker_count: int = 0
     warning_count: int = 0
     failure_count: int = 0
     unknown_count: int = 0
     passed_count: int = 0
     not_applicable_count: int = 0
-    limitations: Tuple[str, ...] = ()
-    provider_errors: Tuple[str, ...] = ()
+    limitations: tuple[str, ...] = ()
+    provider_errors: tuple[str, ...] = ()
     redacted: bool = True
     duration_seconds: float = 0.0
-    snapshot_note: str = (
-        "Point-in-time snapshot. Campaign state may change after this check ran."
-    )
+    snapshot_note: str = "Point-in-time snapshot. Campaign state may change after this check ran."
 
     def __post_init__(self) -> None:
         for name in ("results", "limitations", "provider_errors"):
             _freeze(self, name, as_tuple(getattr(self, name)))
 
-    def results_by_status(self, status: RuleStatus) -> Tuple[RuleResult, ...]:
+    def results_by_status(self, status: RuleStatus) -> tuple[RuleResult, ...]:
         return tuple(r for r in self.results if r.status is status)
 
     @property
-    def blockers(self) -> Tuple[RuleResult, ...]:
+    def blockers(self) -> tuple[RuleResult, ...]:
         return tuple(r for r in self.results if r.is_blocking)
 
     @property
-    def warnings(self) -> Tuple[RuleResult, ...]:
+    def warnings(self) -> tuple[RuleResult, ...]:
         return tuple(r for r in self.results if r.status is RuleStatus.WARN)
 
     @property
-    def failures(self) -> Tuple[RuleResult, ...]:
+    def failures(self) -> tuple[RuleResult, ...]:
         return tuple(r for r in self.results if r.status is RuleStatus.FAIL)
 
     @property
-    def unknowns(self) -> Tuple[RuleResult, ...]:
+    def unknowns(self) -> tuple[RuleResult, ...]:
         return tuple(r for r in self.results if r.status is RuleStatus.UNKNOWN)

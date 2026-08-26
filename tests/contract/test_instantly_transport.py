@@ -7,6 +7,7 @@ campaign. Treat a failure here as a security incident, not a test failure.
 from __future__ import annotations
 
 import itertools
+import re
 
 import httpx
 import pytest
@@ -16,6 +17,7 @@ from campaign_preflight.providers.instantly_transport import (
     READ_ONLY_ALLOWLIST,
     ReadOnlyTransport,
     ReadOnlyViolation,
+    audit_allowlist,
     is_allowed,
 )
 
@@ -84,6 +86,37 @@ class TestAllowlistShape:
         for _, pattern, _ in READ_ONLY_ALLOWLIST:
             assert pattern.pattern.startswith("^") and pattern.pattern.endswith("$")
 
+    def test_the_real_allowlist_passes_its_own_audit(self) -> None:
+        audit_allowlist()
+
+
+class TestAllowlistAudit:
+    """The guard that runs at import time. An untested guard is not a guard."""
+
+    @pytest.mark.parametrize("method", ["PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
+    def test_a_mutating_method_is_rejected(self, method: str) -> None:
+        entry = (method, re.compile(r"^/api/v2/campaigns$"), "should never be allowed")
+        with pytest.raises(AssertionError, match="mutating method"):
+            audit_allowlist((entry,))
+
+    def test_an_undocumented_post_is_rejected(self) -> None:
+        entry = ("POST", re.compile(r"^/api/v2/leads/add$"), "a write in disguise")
+        with pytest.raises(AssertionError, match="undocumented POST"):
+            audit_allowlist((entry,))
+
+    def test_the_documented_post_is_accepted(self) -> None:
+        audit_allowlist((("POST", re.compile(r"^/api/v2/leads/list$"), "the read exception"),))
+
+    @pytest.mark.parametrize(
+        "pattern", [r"/api/v2/campaigns$", r"^/api/v2/campaigns", r"/api/v2/campaigns"]
+    )
+    def test_an_unanchored_pattern_is_rejected(self, pattern: str) -> None:
+        with pytest.raises(AssertionError, match="not anchored"):
+            audit_allowlist((("GET", re.compile(pattern), "unanchored"),))
+
+    def test_a_well_formed_get_is_accepted(self) -> None:
+        audit_allowlist((("GET", re.compile(r"^/api/v2/campaigns$"), "fine"),))
+
 
 class TestAllowlistDecisions:
     @pytest.mark.parametrize(("method", "path"), FORBIDDEN_REQUESTS)
@@ -106,16 +139,13 @@ class TestAllowlistDecisions:
     def test_the_reads_this_tool_needs_are_permitted(self, method: str, path: str) -> None:
         assert is_allowed(method, path)
 
-    @pytest.mark.parametrize(
-        ("method", "path"), list(itertools.product(ALL_METHODS, SAMPLE_PATHS))
-    )
+    @pytest.mark.parametrize(("method", "path"), list(itertools.product(ALL_METHODS, SAMPLE_PATHS)))
     def test_the_full_method_path_matrix_matches_the_allowlist(
         self, method: str, path: str
     ) -> None:
         """Exhaustive: nothing outside the allowlist is reachable for any method."""
         expected = any(
-            method == allowed and pattern.match(path)
-            for allowed, pattern, _ in READ_ONLY_ALLOWLIST
+            method == allowed and pattern.match(path) for allowed, pattern, _ in READ_ONLY_ALLOWLIST
         )
         assert is_allowed(method, path) is expected
 
@@ -133,7 +163,9 @@ class TestAllowlistDecisions:
 class TestTransportEnforcement:
     async def test_the_transport_raises_on_a_forbidden_request(self) -> None:
         guard = ReadOnlyTransport(httpx.MockTransport(lambda r: httpx.Response(200, json={})))
-        async with httpx.AsyncClient(transport=guard, base_url="https://api.instantly.ai") as client:
+        async with httpx.AsyncClient(
+            transport=guard, base_url="https://api.instantly.ai"
+        ) as client:
             with pytest.raises(ReadOnlyViolation):
                 await client.post("/api/v2/campaigns/abc/activate")
 
@@ -145,7 +177,9 @@ class TestTransportEnforcement:
             return httpx.Response(200, json={})
 
         guard = ReadOnlyTransport(httpx.MockTransport(handler))
-        async with httpx.AsyncClient(transport=guard, base_url="https://api.instantly.ai") as client:
+        async with httpx.AsyncClient(
+            transport=guard, base_url="https://api.instantly.ai"
+        ) as client:
             for method, path in FORBIDDEN_REQUESTS:
                 with pytest.raises(ReadOnlyViolation):
                     await client.request(method, path)
@@ -153,7 +187,9 @@ class TestTransportEnforcement:
 
     async def test_blocked_attempts_are_recorded(self) -> None:
         guard = ReadOnlyTransport(httpx.MockTransport(lambda r: httpx.Response(200, json={})))
-        async with httpx.AsyncClient(transport=guard, base_url="https://api.instantly.ai") as client:
+        async with httpx.AsyncClient(
+            transport=guard, base_url="https://api.instantly.ai"
+        ) as client:
             with pytest.raises(ReadOnlyViolation):
                 await client.delete("/api/v2/leads/abc")
         assert guard.blocked == [("DELETE", "/api/v2/leads/abc")]
@@ -162,7 +198,9 @@ class TestTransportEnforcement:
         guard = ReadOnlyTransport(
             httpx.MockTransport(lambda r: httpx.Response(200, json={"ok": True}))
         )
-        async with httpx.AsyncClient(transport=guard, base_url="https://api.instantly.ai") as client:
+        async with httpx.AsyncClient(
+            transport=guard, base_url="https://api.instantly.ai"
+        ) as client:
             response = await client.get("/api/v2/campaigns")
         assert response.json() == {"ok": True}
 

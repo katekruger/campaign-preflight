@@ -59,7 +59,8 @@ against every failure status in `tests/unit/test_registry.py`.
 
 | Module | Responsibility |
 |---|---|
-| `models.py` | Frozen Pydantic v2 domain models. All datetimes are timezone-aware UTC. |
+| `models.py` | Frozen dataclass domain models. All datetimes are timezone-aware UTC. |
+| `_yaml.py` | Bundled YAML-subset parser, so the package needs no PyYAML. |
 | `normalization.py` | Deterministic text, email, domain, token, and URL handling. |
 | `config.py` | Versioned, strictly-validated configuration. |
 | `providers/base.py` | The read-only provider contract and `ProviderResult`. |
@@ -71,13 +72,42 @@ against every failure status in `tests/unit/test_registry.py`.
 | `scoring.py` | The published score formula and the readiness decision. |
 | `engine.py` | Gather, evaluate, assemble. |
 | `reporting/` | Terminal, JSON, Markdown, redaction, CSV export. |
-| `mcp/` | The read-only MCP server. |
-| `cli.py` | Typer CLI and the documented exit codes. |
+| `mcp/protocol.py` | MCP over stdio, implemented directly on JSON-RPC. |
+| `mcp/server.py` | The six read-only tools and the startup safety assertion. |
+| `cli.py` | argparse CLI and the documented exit codes. |
+
+## No runtime dependencies
+
+The package imports nothing outside the standard library, and targets Python
+3.9. That is a deliberate constraint, not an aesthetic one: Campaign Preflight
+ships inside a Cowork plugin, where the only guaranteed interpreter is the
+system `python3` with no packages installed. A dependency would mean the plugin
+does not work for the person you send it to.
+
+Three things this cost, and what was done instead:
+
+| Was | Now |
+|---|---|
+| pydantic v2 models | frozen dataclasses with `__post_init__` validation |
+| PyYAML | `_yaml.py`, a strict YAML-subset parser, differentially tested against PyYAML on every document the tool reads |
+| typer + rich | argparse and raw ANSI |
+| the `mcp` SDK | `mcp/protocol.py`, JSON-RPC over stdio |
+
+`httpx` survives as an **optional extra** behind a lazy import, needed only for
+the live Instantly provider. Nothing else depends on it, and its absence is
+reported as a clear message rather than an ImportError traceback.
+
+The YAML parser is the only piece that replaced a well-tested library with new
+code, so it is held to a differential test: for every YAML and JSON document in
+the repository, its output must equal PyYAML's exactly, types included. It
+refuses anchors, aliases, tags, merge keys, and multi-document files by raising
+rather than by silently ignoring them — a config file that half-parses is worse
+than one that fails.
 
 ## Why the context is frozen
 
-`PreflightContext` and every model it holds are `frozen=True`. "A rule must not
-mutate its input" is therefore enforced by the type system rather than by
+`PreflightContext` and every model it holds are frozen dataclasses. "A rule must
+not mutate its input" is therefore enforced by the runtime rather than by
 review. `tests/unit/test_registry.py` additionally serializes the context before
 and after every rule and compares — belt and braces, because a rule that quietly
 edited shared state would produce findings that depend on rule order.
@@ -215,8 +245,10 @@ data as a finding in its own right.
 - Multi-tenant isolation — this is a local CLI, not a service.
 - Provider-side authorization — scopes are Instantly's to enforce; we report
   what we could not read.
-- Supply-chain integrity of dependencies beyond a locked `uv.lock`, Dependabot,
-  and a dependency audit in CI.
+- Supply-chain integrity of the development toolchain beyond a locked
+  `uv.lock`, Dependabot, and a dependency audit in CI. The shipped package
+  itself has no runtime dependencies, so its supply chain is the standard
+  library.
 
 ## Reporting a vulnerability
 

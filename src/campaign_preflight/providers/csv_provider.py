@@ -44,7 +44,6 @@ from ..normalization import (
     canonical_header,
     coerce_bool,
     coerce_int,
-    domain_of,
     normalize_domain,
     normalize_email,
     normalize_text,
@@ -52,7 +51,7 @@ from ..normalization import (
 )
 from .base import CampaignProvider, ProviderResult, failed, misconfigured, ok, unsupported
 
-__all__ = ["CSVProvider", "load_campaign_document", "parse_campaign", "MAX_INPUT_BYTES"]
+__all__ = ["MAX_INPUT_BYTES", "CSVProvider", "load_campaign_document", "parse_campaign"]
 
 # 256 MB of CSV is ~1M leads; beyond that the user wants a database, not a linter.
 MAX_INPUT_BYTES = 256 * 1024 * 1024
@@ -63,13 +62,24 @@ MAX_FIELD_BYTES = 1_000_000
 SUPPORTED_CAMPAIGN_VERSIONS = frozenset({1})
 
 _DAY_NAMES: dict[str, int] = {
-    "sun": 0, "sunday": 0,
-    "mon": 1, "monday": 1,
-    "tue": 2, "tues": 2, "tuesday": 2,
-    "wed": 3, "weds": 3, "wednesday": 3,
-    "thu": 4, "thur": 4, "thurs": 4, "thursday": 4,
-    "fri": 5, "friday": 5,
-    "sat": 6, "saturday": 6,
+    "sun": 0,
+    "sunday": 0,
+    "mon": 1,
+    "monday": 1,
+    "tue": 2,
+    "tues": 2,
+    "tuesday": 2,
+    "wed": 3,
+    "weds": 3,
+    "wednesday": 3,
+    "thu": 4,
+    "thur": 4,
+    "thurs": 4,
+    "thursday": 4,
+    "fri": 5,
+    "friday": 5,
+    "sat": 6,
+    "saturday": 6,
 }
 
 # Python's csv module defaults to a 128 KB field limit; a single oversized cell
@@ -192,7 +202,8 @@ def _parse_schedule(raw: Any, fallback_tz: str | None, warnings: list[str]) -> C
         if not isinstance(entry, dict):
             warnings.append(f"campaign.schedule.windows[{index}]: expected a mapping; ignoring")
             continue
-        timing = entry.get("timing") if isinstance(entry.get("timing"), dict) else {}
+        raw_timing = entry.get("timing")
+        timing: dict[str, Any] = raw_timing if isinstance(raw_timing, dict) else {}
         raw_start = entry.get("start", timing.get("from"))
         raw_end = entry.get("end", timing.get("to"))
         raw_tz = normalize_text(entry.get("timezone")) or schedule_tz
@@ -203,9 +214,7 @@ def _parse_schedule(raw: Any, fallback_tz: str | None, warnings: list[str]) -> C
                 f"campaign.schedule.windows[{index}]: unparseable start time {raw_start!r}"
             )
         if raw_end not in (None, "") and end is None:
-            warnings.append(
-                f"campaign.schedule.windows[{index}]: unparseable end time {raw_end!r}"
-            )
+            warnings.append(f"campaign.schedule.windows[{index}]: unparseable end time {raw_end!r}")
         windows.append(
             SendingWindow(
                 name=normalize_text(entry.get("name")) or f"window {index + 1}",
@@ -274,7 +283,9 @@ def parse_campaign(
 ) -> tuple[Campaign, list[str]]:
     """Turn a campaign document into a :class:`Campaign` plus parse warnings."""
     warnings: list[str] = []
-    body = document.get("campaign") if isinstance(document.get("campaign"), dict) else document
+    nested = document.get("campaign")
+    # A campaign may be nested under a `campaign:` key or be the whole document.
+    body: dict[str, Any] = nested if isinstance(nested, dict) else document
 
     timezone_name = normalize_text(body.get("timezone"))
     schedule = _parse_schedule(body.get("schedule"), timezone_name, warnings)
@@ -333,7 +344,9 @@ def _open_csv(path: Path, *, what: str) -> tuple[io.TextIOWrapper, int]:
     if size == 0:
         raise InputError(f"{what} is empty: {path}")
     # utf-8-sig strips a BOM; newline="" lets csv handle CRLF and embedded newlines.
-    handle = open(resolved, encoding="utf-8-sig", newline="")
+    # Deliberately returned open: callers stream rows from it and close it in
+    # their own finally block, which is what keeps memory flat on large files.
+    handle = open(resolved, encoding="utf-8-sig", newline="")  # noqa: SIM115
     return handle, size
 
 
@@ -793,9 +806,7 @@ class CSVProvider(CampaignProvider):
             except InputError as exc:
                 return failed(Capability.SENDERS, str(exc))
             self.warnings.extend(warnings)
-            return ok(
-                Capability.SENDERS, senders, detail=f"read from {self.senders_path.name}"
-            )
+            return ok(Capability.SENDERS, senders, detail=f"read from {self.senders_path.name}")
 
         inline = self._inline_senders()
         if inline is None:
@@ -821,9 +832,7 @@ class CSVProvider(CampaignProvider):
         report that individual sender as UNKNOWN rather than assuming healthy.
         """
         if not senders:
-            return unsupported(
-                Capability.SENDER_HEALTH, "no senders to report health for"
-            )
+            return unsupported(Capability.SENDER_HEALTH, "no senders to report health for")
         scored = sum(1 for s in senders if s.health_score is not None)
         if scored == 0:
             return unsupported(
@@ -885,11 +894,7 @@ class CSVProvider(CampaignProvider):
         return ok(Capability.EVIDENCE, claims)
 
     async def health_check(self) -> ProviderResult[dict[str, Any]]:
-        missing = [
-            str(p)
-            for p in (self.campaign_path, self.leads_path)
-            if not Path(p).is_file()
-        ]
+        missing = [str(p) for p in (self.campaign_path, self.leads_path) if not Path(p).is_file()]
         if missing:
             return failed(Capability.CAMPAIGN, f"missing input files: {', '.join(missing)}")
         return ok(Capability.CAMPAIGN, {"provider": self.name, "reachable": True})

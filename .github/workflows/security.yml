@@ -1,0 +1,267 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, so a newly-disclosed advisory in the dev toolchain surfaces
+    # without waiting for someone to open a pull request.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: python
+          queries: security-and-quality
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:python"
+
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Audit the development toolchain
+        # The shipped package has no runtime dependencies, so this covers the
+        # dev group only -- which is still worth watching, since it runs in CI.
+        run: |
+          uv sync --all-extras --frozen
+          uv run --with pip-audit pip-audit --strict --progress-spinner off || {
+            echo "::warning::pip-audit reported findings in the development toolchain"
+            exit 1
+          }
+
+  no-runtime-dependencies:
+    name: No runtime dependencies crept in
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+
+      - name: Every import in the package resolves to the standard library
+        run: |
+          python - <<'PY'
+          """A runtime dependency would break the Cowork plugin, so it is a
+          build failure rather than a review comment."""
+          import ast, pathlib, sys, sysconfig
+
+          stdlib = set(getattr(sys, "stdlib_module_names", ()))
+          if not stdlib:  # Python 3.9 has no sys.stdlib_module_names
+              root = pathlib.Path(sysconfig.get_paths()["stdlib"])
+              # `iterdir` alone misses C extension modules such as unicodedata,
+              # which live in lib-dynload as .so files rather than .py.
+              stdlib = set(sys.builtin_module_names)
+              for entry in root.iterdir():
+                  stdlib.add(entry.stem.split(".")[0])
+              dynload = root / "lib-dynload"
+              if dynload.is_dir():
+                  for entry in dynload.iterdir():
+                      stdlib.add(entry.name.split(".")[0])
+
+          # Permitted third-party imports, each behind a lazy guard.
+          ALLOWED = {"httpx"}  # optional extra: the Instantly provider only
+
+          offenders = []
+          for path in sorted(pathlib.Path("src").rglob("*.py")):
+              tree = ast.parse(path.read_text(encoding="utf-8"))
+              for node in ast.walk(tree):
+                  if isinstance(node, ast.Import):
+                      names = [a.name.split(".")[0] for a in node.names]
+                  elif isinstance(node, ast.ImportFrom):
+                      if node.level:      # relative import, always fine
+                          continue
+                      names = [(node.module or "").split(".")[0]]
+                  else:
+                      continue
+                  for name in names:
+                      if not name or name in stdlib or name in ALLOWED:
+                          continue
+                      offenders.append(f"{path}:{node.lineno}: imports {name!r}")
+
+          if offenders:
+              print("::error::the package must not import third-party modules")
+              for line in offenders:
+                  print(f"  {line}")
+              sys.exit(1)
+          print(f"checked {len(list(pathlib.Path('src').rglob('*.py')))} modules: "
+                f"standard library only (plus optional {sorted(ALLOWED)})")
+          PY
+
+  secret-scan:
+    name: Secret and personal-data scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: No credential-shaped strings outside tests and docs
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          import pathlib, sys
+          from campaign_preflight.errors import redact_secrets
+
+          # Tests use deliberately fake keys; docs use "your-key-here"
+          # placeholders. Both are checked separately below.
+          EXEMPT_PREFIXES = ("tests/", "docs/", "README.md", ".github/")
+          SKIP_DIRS = {
+              ".git", ".venv", "__pycache__", "dist", "plugin",
+              # Caches echo test names back, including the fake-key test names.
+              ".pytest_cache", ".ruff_cache", ".mypy_cache", ".hypothesis", "htmlcov",
+          }
+
+          # redact_secrets is deliberately over-eager -- masking a few extra
+          # characters is cheap, missing a key is not. That makes it too blunt to
+          # scan source with directly: `api_key = os.environ.get(...)` trips it.
+          # Reading a name from the environment is exactly the safe pattern, so
+          # only literal-looking values are treated as findings.
+          import re
+
+          READS_FROM_ENV = re.compile(r"(?i)(os\.environ|getenv|\$\{?[A-Z_]+\}?|<[a-z-]+>)")
+          PLACEHOLDER = re.compile(r"(?i)your-key-here|example|placeholder|\.\.\.|xxx")
+
+          hits = []
+          for path in sorted(pathlib.Path(".").rglob("*")):
+              if not path.is_file() or any(p in SKIP_DIRS for p in path.parts):
+                  continue
+              if str(path).startswith(EXEMPT_PREFIXES) or path.suffix in {".lock"}:
+                  continue
+              try:
+                  text = path.read_text(encoding="utf-8")
+              except (UnicodeDecodeError, OSError):
+                  continue
+              for number, line in enumerate(text.splitlines(), 1):
+                  if redact_secrets(line) == line:
+                      continue
+                  stripped = line.strip()
+                  if stripped.startswith("#") or READS_FROM_ENV.search(stripped):
+                      continue  # names the variable, does not embed a value
+                  if PLACEHOLDER.search(stripped):
+                      continue  # documented placeholder, not a credential
+                  hits.append(f"{path}:{number}: {stripped[:80]}")
+
+          if hits:
+              print("::error::credential-shaped strings found")
+              for hit in hits:
+                  print(f"  {hit}")
+              sys.exit(1)
+          print("no credential-shaped strings in shipped source")
+          PY
+
+      - name: Test fixtures use only reserved example domains
+        run: |
+          python - <<'PY'
+          """RFC 2606 reserves example.com/.invalid for documentation. Anything
+          else in fixture data risks being a real person's address."""
+          import pathlib, re, sys
+
+          ALLOWED_SUFFIX = (".example.com", ".example.org", ".example.net", ".invalid")
+          # contacts.free_email_domain can only be demonstrated against a real
+          # free-provider domain. The local parts on these are deliberately not
+          # plausible people (e.g. synthetic-demo-contact@).
+          FREE_PROVIDERS = {"gmail.com", "outlook.com", "yahoo.com", "hotmail.com"}
+          ALLOWED_EXACT = {"example.com", "example.org", "example.net"} | FREE_PROVIDERS
+          ROOTS = ["src/campaign_preflight/demo", "examples"]
+          pattern = re.compile(r"[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})")
+
+          offenders = []
+          for root in ROOTS:
+              for path in sorted(pathlib.Path(root).rglob("*")):
+                  if not path.is_file():
+                      continue
+                  try:
+                      text = path.read_text(encoding="utf-8")
+                  except (UnicodeDecodeError, OSError):
+                      continue
+                  for match in pattern.finditer(text):
+                      domain = match.group(1).lower().rstrip(".")
+                      if domain in ALLOWED_EXACT or domain.endswith(ALLOWED_SUFFIX):
+                          continue
+                      offenders.append(f"{path}: {match.group(0)}")
+
+          if offenders:
+              print("::error::non-reserved email domains in fixture data")
+              for offender in sorted(set(offenders)):
+                  print(f"  {offender}")
+              sys.exit(1)
+          print("all fixture addresses use reserved example domains")
+          PY
+
+      - name: No .env file is tracked
+        run: |
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo "::error::.env is tracked; it must never be committed"
+            exit 1
+          fi
+          echo ".env is not tracked"
+
+  read-only-boundary:
+    name: Read-only boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - run: uv sync --all-extras --frozen
+
+      # A failure in either of these is a security incident, not a test
+      # failure, so they run in the security workflow as well as in CI.
+      - name: The Instantly transport blocks every write
+        run: uv run pytest tests/contract/test_instantly_transport.py -q
+
+      - name: The MCP server exposes only read-only tools
+        run: uv run pytest tests/unit/test_mcp_safety.py -q
+
+      - name: Missing data never becomes a pass
+        run: uv run pytest tests/unit/test_registry.py -k "missing_required_data" -q
+
+      - name: Credentials never reach output
+        run: uv run pytest tests/unit/test_redaction.py -q

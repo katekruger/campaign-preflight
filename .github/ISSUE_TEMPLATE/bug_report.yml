@@ -1,0 +1,77 @@
+name: Bug report
+description: A check produced the wrong result, or the tool misbehaved.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Two things make a report immediately actionable:
+        the **rule id** and a **minimal input** that reproduces it.
+
+        If a rule returned `PASS` when the underlying data was missing, please
+        report that [privately as a security
+        issue](https://github.com/katekruger/campaign-preflight/security/advisories/new)
+        instead — it is the failure mode this tool exists to prevent.
+
+  - type: input
+    id: rule_id
+    attributes:
+      label: Rule id
+      description: From the report, e.g. `contacts.duplicate_email`. Leave blank if not rule-specific.
+      placeholder: contacts.duplicate_email
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened
+      description: What the tool reported.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: >
+        The smallest campaign file and lead rows that trigger it. **Please
+        replace real contact data with example.com addresses before pasting.**
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: version
+    attributes:
+      label: Version
+      description: Output of `campaign-preflight version`.
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: How were you running it?
+      options:
+        - CLI
+        - MCP server
+        - Cowork plugin
+        - Imported as a library
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have removed any real contact data and API keys from this report.
+          required: true
+        - label: I checked `campaign-preflight rules explain <rule_id>` to confirm the rule does what I expected.

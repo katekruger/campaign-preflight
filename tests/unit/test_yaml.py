@@ -85,7 +85,9 @@ class TestStructures:
 
     def test_sequence_of_mappings(self) -> None:
         source = "items:\n  - name: a\n    value: 1\n  - name: b\n    value: 2\n"
-        assert safe_load(source) == {"items": [{"name": "a", "value": 1}, {"name": "b", "value": 2}]}
+        assert safe_load(source) == {
+            "items": [{"name": "a", "value": 1}, {"name": "b", "value": 2}]
+        }
 
     def test_deeply_nested_sequence_of_mappings(self) -> None:
         source = (
@@ -160,7 +162,9 @@ class TestBlockScalars:
         assert safe_load(source)["body"] == "a # not a comment\n"
 
     def test_block_scalar_inside_a_sequence_item(self) -> None:
-        source = "steps:\n  - subject: Hi\n    body: |\n      Hello\n      There\n  - subject: Bye\n"
+        source = (
+            "steps:\n  - subject: Hi\n    body: |\n      Hello\n      There\n  - subject: Bye\n"
+        )
         parsed = safe_load(source)
         assert parsed["steps"][0]["body"] == "Hello\nThere\n"
         assert parsed["steps"][1] == {"subject": "Bye"}

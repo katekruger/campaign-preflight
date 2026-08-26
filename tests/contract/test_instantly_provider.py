@@ -12,7 +12,7 @@ from typing import Any
 import httpx
 import pytest
 
-from campaign_preflight.errors import ProviderAuthError, ProviderError
+from campaign_preflight.errors import ProviderAuthError
 from campaign_preflight.models import CapabilityStatus
 from campaign_preflight.providers.instantly_provider import (
     ACCOUNT_STATUS,
@@ -40,7 +40,15 @@ CAMPAIGN: dict[str, Any] = {
             {
                 "name": "Business hours",
                 "timing": {"from": "09:00", "to": "17:00"},
-                "days": {"0": False, "1": True, "2": True, "3": True, "4": True, "5": True, "6": False},
+                "days": {
+                    "0": False,
+                    "1": True,
+                    "2": True,
+                    "3": True,
+                    "4": True,
+                    "5": True,
+                    "6": False,
+                },
                 "timezone": "America/New_York",
             }
         ],
@@ -54,10 +62,18 @@ CAMPAIGN: dict[str, Any] = {
                     "delay_unit": "days",
                     "variants": [
                         {"subject": "Hi {{first_name}}", "body": "Hello.<br/>Unsubscribe."},
-                        {"subject": "Hey {{first_name}}", "body": "Hi there.<br/>Unsubscribe.", "v_disabled": True},
+                        {
+                            "subject": "Hey {{first_name}}",
+                            "body": "Hi there.<br/>Unsubscribe.",
+                            "v_disabled": True,
+                        },
                     ],
                 },
-                {"type": "email", "delay": 3, "variants": [{"subject": "", "body": "Following up. Unsubscribe."}]},
+                {
+                    "type": "email",
+                    "delay": 3,
+                    "variants": [{"subject": "", "body": "Following up. Unsubscribe."}],
+                },
             ]
         }
     ],
@@ -187,7 +203,9 @@ class TestCampaignParsing:
 
     async def test_null_stop_on_reply_stays_null(self) -> None:
         """Instantly returns null for unconfigured settings. Null is not False."""
-        p = provider(route({f"/api/v2/campaigns/{CAMPAIGN_ID}": {**CAMPAIGN, "stop_on_reply": None}}))
+        p = provider(
+            route({f"/api/v2/campaigns/{CAMPAIGN_ID}": {**CAMPAIGN, "stop_on_reply": None}})
+        )
         campaign = (await p.get_campaign(CAMPAIGN_ID)).data
         await p.aclose()
         assert campaign.stop_on_reply is None
@@ -219,7 +237,9 @@ class TestLeads:
     async def test_prior_contact_is_derived_from_a_documented_field(self) -> None:
         """The lead status enum's labels are undocumented, so we do not guess them."""
         contacted = {**LEAD, "timestamp_last_contact": "2026-02-01T10:00:00Z"}
-        p = provider(route({"/api/v2/leads/list": {"items": [contacted], "next_starting_after": None}}))
+        p = provider(
+            route({"/api/v2/leads/list": {"items": [contacted], "next_starting_after": None}})
+        )
         lead = (await p.list_campaign_leads(CAMPAIGN_ID)).data[0]
         await p.aclose()
         assert lead.status_label == "contacted"
@@ -245,7 +265,10 @@ class TestLeads:
 class TestPagination:
     async def test_walks_multiple_pages(self) -> None:
         pages = {
-            None: {"items": [{"bl_value": f"a{i}.example.com"} for i in range(100)], "next_starting_after": "p2"},
+            None: {
+                "items": [{"bl_value": f"a{i}.example.com"} for i in range(100)],
+                "next_starting_after": "p2",
+            },
             "p2": {"items": [{"bl_value": "b.example.com"}], "next_starting_after": None},
         }
 
@@ -279,7 +302,8 @@ class TestPagination:
         def handler(request: httpx.Request) -> httpx.Response:
             n = next(counter)
             return httpx.Response(
-                200, json={"items": [{"bl_value": f"x{n}.example.com"}], "next_starting_after": f"c{n}"}
+                200,
+                json={"items": [{"bl_value": f"x{n}.example.com"}], "next_starting_after": f"c{n}"},
             )
 
         p = provider(httpx.MockTransport(handler), page_cap=3)
@@ -290,9 +314,7 @@ class TestPagination:
 
     async def test_a_lead_limit_truncates_and_flags_it(self) -> None:
         def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(
-                200, json={"items": [LEAD] * 5, "next_starting_after": "more"}
-            )
+            return httpx.Response(200, json={"items": [LEAD] * 5, "next_starting_after": "more"})
 
         p = provider(httpx.MockTransport(handler))
         result = await p.list_campaign_leads(CAMPAIGN_ID, limit=3)
@@ -323,9 +345,7 @@ class TestSenders:
 
     @pytest.mark.parametrize("code,label", sorted(ACCOUNT_STATUS.items()))
     async def test_documented_account_statuses(self, code: int, label: str) -> None:
-        p = provider(
-            route({"/api/v2/accounts/dana@example.com": {**ACCOUNT, "status": code}})
-        )
+        p = provider(route({"/api/v2/accounts/dana@example.com": {**ACCOUNT, "status": code}}))
         await p.get_campaign(CAMPAIGN_ID)
         senders = (await p.list_campaign_senders(CAMPAIGN_ID)).data
         await p.aclose()
@@ -334,7 +354,9 @@ class TestSenders:
 
     @pytest.mark.parametrize("code,label", sorted(WARMUP_STATUS.items()))
     async def test_documented_warmup_statuses(self, code: int, label: str) -> None:
-        p = provider(route({"/api/v2/accounts/dana@example.com": {**ACCOUNT, "warmup_status": code}}))
+        p = provider(
+            route({"/api/v2/accounts/dana@example.com": {**ACCOUNT, "warmup_status": code}})
+        )
         await p.get_campaign(CAMPAIGN_ID)
         senders = (await p.list_campaign_senders(CAMPAIGN_ID)).data
         await p.aclose()
@@ -343,7 +365,13 @@ class TestSenders:
     async def test_an_unreadable_account_keeps_the_sender_without_health(self) -> None:
         """The campaign genuinely has the sender; we simply cannot assess it."""
         p = provider(
-            route({"/api/v2/accounts/mia@example.com": httpx.Response(403, json={"message": "no scope"})})
+            route(
+                {
+                    "/api/v2/accounts/mia@example.com": httpx.Response(
+                        403, json={"message": "no scope"}
+                    )
+                }
+            )
         )
         await p.get_campaign(CAMPAIGN_ID)
         result = await p.list_campaign_senders(CAMPAIGN_ID)
@@ -357,7 +385,9 @@ class TestSenders:
         p = provider(
             route(
                 {
-                    "/api/v2/accounts/dana@example.com": httpx.Response(403, json={"message": "no"}),
+                    "/api/v2/accounts/dana@example.com": httpx.Response(
+                        403, json={"message": "no"}
+                    ),
                     "/api/v2/accounts/mia@example.com": httpx.Response(403, json={"message": "no"}),
                 }
             )
@@ -368,7 +398,9 @@ class TestSenders:
         assert result.status is CapabilityStatus.UNAVAILABLE_PERMISSIONS
 
     async def test_no_warmup_score_means_unsupported_health_not_a_zero(self) -> None:
-        p = provider(route({"/api/v2/accounts/dana@example.com": {**ACCOUNT, "stat_warmup_score": None}}))
+        p = provider(
+            route({"/api/v2/accounts/dana@example.com": {**ACCOUNT, "stat_warmup_score": None}})
+        )
         await p.get_campaign(CAMPAIGN_ID)
         senders = (await p.list_campaign_senders(CAMPAIGN_ID)).data
         health = await p.get_sender_health([s for s in senders if s.email == "dana@example.com"])
@@ -416,7 +448,9 @@ class TestErrorHandling:
         self, status: int, expected: CapabilityStatus
     ) -> None:
         p = provider(
-            route({f"/api/v2/campaigns/{CAMPAIGN_ID}": httpx.Response(status, json={"message": "x"})})
+            route(
+                {f"/api/v2/campaigns/{CAMPAIGN_ID}": httpx.Response(status, json={"message": "x"})}
+            )
         )
         result = await p.get_campaign(CAMPAIGN_ID)
         await p.aclose()
@@ -510,7 +544,13 @@ class TestSecrets:
 
     async def test_the_key_never_appears_in_an_error(self) -> None:
         p = provider(
-            route({f"/api/v2/campaigns/{CAMPAIGN_ID}": httpx.Response(401, json={"message": "bad key"})})
+            route(
+                {
+                    f"/api/v2/campaigns/{CAMPAIGN_ID}": httpx.Response(
+                        401, json={"message": "bad key"}
+                    )
+                }
+            )
         )
         result = await p.get_campaign(CAMPAIGN_ID)
         await p.aclose()
@@ -596,7 +636,9 @@ class TestFullRun:
         from campaign_preflight.models import RuleStatus
 
         p = provider(
-            route({"/api/v2/block-lists-entries": httpx.Response(403, json={"message": "no scope"})})
+            route(
+                {"/api/v2/block-lists-entries": httpx.Response(403, json={"message": "no scope"})}
+            )
         )
         report = await run_preflight(p, PreflightConfig(), campaign_id=CAMPAIGN_ID)
         await p.aclose()

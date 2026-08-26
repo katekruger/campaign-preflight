@@ -47,9 +47,7 @@ class TestTimezone:
 
 class TestBusinessHours:
     def test_window_inside_business_hours_passes(self) -> None:
-        assert (
-            run_rule("schedule.outside_business_hours", make_context()).status is RuleStatus.PASS
-        )
+        assert run_rule("schedule.outside_business_hours", make_context()).status is RuleStatus.PASS
 
     def test_early_start_warns(self) -> None:
         ctx = with_schedule(windows=(make_window(start=time(5, 30)),))
@@ -62,9 +60,7 @@ class TestBusinessHours:
     def test_bounds_are_configurable(self) -> None:
         ctx = with_schedule(windows=(make_window(start=time(5, 30)),))
         config = PreflightConfig(settings={"business_hours_start": "05:00"})
-        assert (
-            run_rule("schedule.outside_business_hours", ctx, config).status is RuleStatus.PASS
-        )
+        assert run_rule("schedule.outside_business_hours", ctx, config).status is RuleStatus.PASS
 
     def test_midnight_crossing_window_is_reported(self) -> None:
         ctx = with_schedule(windows=(make_window(start=time(22, 0), end=time(6, 0)),))
@@ -85,9 +81,7 @@ class TestDays:
     def test_weekend_can_be_allowed(self) -> None:
         ctx = with_schedule(windows=(make_window(days=frozenset({6})),))
         config = PreflightConfig(settings={"allow_weekend_sending": True})
-        assert (
-            run_rule("schedule.weekend_sending", ctx, config).status is RuleStatus.NOT_APPLICABLE
-        )
+        assert run_rule("schedule.weekend_sending", ctx, config).status is RuleStatus.NOT_APPLICABLE
 
     def test_no_active_days_is_a_blocker(self) -> None:
         ctx = with_schedule(windows=(make_window(days=frozenset()),))
@@ -125,9 +119,7 @@ class TestDateOrdering:
         config = PreflightConfig(
             rules={"schedule.window_start_after_end": {"allow_overnight": True}}
         )
-        assert (
-            run_rule("schedule.window_start_after_end", ctx, config).status is RuleStatus.PASS
-        )
+        assert run_rule("schedule.window_start_after_end", ctx, config).status is RuleStatus.PASS
 
 
 class TestDaylightSaving:
@@ -168,7 +160,9 @@ class TestTimezoneMismatch:
 
     def test_matching_target_passes(self) -> None:
         config = PreflightConfig(settings={"target_timezone": "America/Phoenix"})
-        assert run_rule("schedule.timezone_mismatch", make_context(), config).status is RuleStatus.PASS
+        assert (
+            run_rule("schedule.timezone_mismatch", make_context(), config).status is RuleStatus.PASS
+        )
 
     def test_different_target_warns(self) -> None:
         config = PreflightConfig(settings={"target_timezone": "Europe/London"})

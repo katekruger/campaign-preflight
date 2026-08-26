@@ -13,7 +13,6 @@ from helpers import (
     make_campaign,
     make_context,
     make_schedule,
-    make_sender,
     make_step,
     make_window,
     run_rule,
@@ -50,9 +49,7 @@ class TestCampaignStatus:
 
     def test_active_campaign_can_be_configured_to_fail(self) -> None:
         ctx = make_context(campaign=make_campaign(status="active"))
-        config = PreflightConfig(
-            rules={"campaign.status_suitable": {"warn_on_active": False}}
-        )
+        config = PreflightConfig(rules={"campaign.status_suitable": {"warn_on_active": False}})
         assert run_rule("campaign.status_suitable", ctx, config).status is RuleStatus.FAIL
 
     def test_provider_error_state_fails(self) -> None:

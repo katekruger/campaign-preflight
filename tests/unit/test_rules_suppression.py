@@ -182,9 +182,7 @@ class TestSuppressionCapability:
         ctx = make_context(
             capabilities={Capability.SUPPRESSIONS: CapabilityStatus.SUPPORTED_FAILED}
         )
-        assert (
-            run_rule("suppression.capability_unavailable", ctx).status is RuleStatus.UNKNOWN
-        )
+        assert run_rule("suppression.capability_unavailable", ctx).status is RuleStatus.UNKNOWN
 
     def test_empty_list_differs_from_unavailable_list(self) -> None:
         """The core distinction: nothing found is not the same as could not look."""

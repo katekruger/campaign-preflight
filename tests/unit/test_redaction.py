@@ -12,9 +12,9 @@ import json
 import pytest
 
 from campaign_preflight.errors import (
+    PreflightError,
     ProviderAuthError,
     ProviderError,
-    PreflightError,
     redact_secrets,
 )
 from campaign_preflight.reporting.redaction import redact_email, redact_samples, redact_text
@@ -56,7 +56,9 @@ class TestSecretScrubbing:
         assert FAKE_KEY not in str(error)
 
     def test_auth_error_never_echoes_the_key(self) -> None:
-        error = ProviderAuthError("Instantly returned 401", status=401, endpoint="/api/v2/campaigns")
+        error = ProviderAuthError(
+            "Instantly returned 401", status=401, endpoint="/api/v2/campaigns"
+        )
         assert "Bearer" not in str(error)
 
 

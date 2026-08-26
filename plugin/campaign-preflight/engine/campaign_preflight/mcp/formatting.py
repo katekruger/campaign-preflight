@@ -17,7 +17,7 @@ from ..models import PreflightReport, RuleResult, RuleStatus
 from ..reporting.json_report import report_to_dict
 from ..reporting.redaction import redact_samples, redact_text
 
-__all__ = ["report_id", "summarize_report", "summarize_finding"]
+__all__ = ["report_id", "summarize_finding", "summarize_report"]
 
 
 def report_id(report: PreflightReport) -> str:
@@ -59,9 +59,7 @@ def summarize_report(
     redacted = report.redacted
 
     def block(results: tuple[RuleResult, ...]) -> list[dict[str, Any]]:
-        return [
-            summarize_finding(r, redacted=redacted, max_samples=max_samples) for r in results
-        ]
+        return [summarize_finding(r, redacted=redacted, max_samples=max_samples) for r in results]
 
     unknown = report.results_by_status(RuleStatus.UNKNOWN)
     payload: dict[str, Any] = {

@@ -47,9 +47,7 @@ text = st.text(max_size=60)
 # design. They are excluded here because a local part containing one is not a
 # mailbox -- it is two tokens.
 local_parts = st.text(
-    alphabet=st.characters(
-        min_codepoint=33, max_codepoint=126, blacklist_characters="@<>\"' \t"
-    ),
+    alphabet=st.characters(min_codepoint=33, max_codepoint=126, blacklist_characters="@<>\"' \t"),
     min_size=1,
     max_size=20,
 )
@@ -125,7 +123,13 @@ def test_redaction_removes_the_mailbox_but_keeps_the_domain(local: str, domain: 
     assert domain in masked
 
 
-@given(st.text(alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", min_size=24, max_size=64))
+@given(
+    st.text(
+        alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_",
+        min_size=24,
+        max_size=64,
+    )
+)
 def test_base64_shaped_keys_are_always_scrubbed(body: str) -> None:
     assert body not in redact_secrets(f"{body}==")
 
@@ -202,13 +206,9 @@ def test_unknown_and_not_applicable_never_deduct(results: list[RuleResult]) -> N
     breakdown = score_results(results, PreflightConfig())
     scored = {d.rule_id for d in breakdown.deductions}
     inert = {
-        r.rule_id
-        for r in results
-        if r.status in {RuleStatus.UNKNOWN, RuleStatus.NOT_APPLICABLE}
+        r.rule_id for r in results if r.status in {RuleStatus.UNKNOWN, RuleStatus.NOT_APPLICABLE}
     }
-    actionable = {
-        r.rule_id for r in results if r.status in {RuleStatus.FAIL, RuleStatus.WARN}
-    }
+    actionable = {r.rule_id for r in results if r.status in {RuleStatus.FAIL, RuleStatus.WARN}}
     assert not (scored & (inert - actionable))
 
 
@@ -273,9 +273,7 @@ def test_duplicate_detection_is_case_insensitive(pairs: list[tuple[str, str]]) -
     options = config.options_for(rule.rule_id, rule.options_model)
 
     lower = [make_lead(email=f"{lo}@{do}", id=f"L{i}") for i, (lo, do) in enumerate(pairs)]
-    upper = [
-        make_lead(email=f"{lo}@{do.upper()}", id=f"L{i}") for i, (lo, do) in enumerate(pairs)
-    ]
+    upper = [make_lead(email=f"{lo}@{do.upper()}", id=f"L{i}") for i, (lo, do) in enumerate(pairs)]
     a = rule.evaluate(make_context(leads=lower), options, config)
     b = rule.evaluate(make_context(leads=upper), options, config)
     assert a.affected_record_count == b.affected_record_count

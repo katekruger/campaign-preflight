@@ -9,6 +9,7 @@ nothing would be worse than no score at all.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 from ..config import PreflightConfig, RuleOptions
 from ..models import (
@@ -34,7 +35,7 @@ UNHEALTHY_WARMUP = frozenset({"banned", "issue", "spam_folder", "suspended", "pa
 
 class _SenderRule(Rule):
     category = RuleCategory.SENDERS
-    requires = (Capability.SENDERS,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.SENDERS,)
 
     @staticmethod
     def limit(config: PreflightConfig) -> int:
@@ -97,9 +98,7 @@ class SenderDisabled(_SenderRule):
                     f"No enabled/paused state was reported for any of the "
                     f"{len(ctx.senders)} senders."
                 )
-            note = (
-                f" ({len(unknown_state)} reported no state)" if unknown_state else ""
-            )
+            note = f" ({len(unknown_state)} reported no state)" if unknown_state else ""
             return self.passed(f"All {len(ctx.senders)} senders are enabled{note}.")
         if len(disabled) == len(ctx.senders):
             return self.failed(
@@ -127,7 +126,7 @@ class SenderHealth(_SenderRule):
     title = "Sender health meets the configured threshold"
     category = RuleCategory.SENDERS
     severity = Severity.HIGH
-    requires = (Capability.SENDERS, Capability.SENDER_HEALTH)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.SENDERS, Capability.SENDER_HEALTH)
     options_model = SenderHealthOptions
     description = (
         "Compares each sender's provider-reported health score against "
@@ -195,8 +194,7 @@ class SenderHealth(_SenderRule):
                 metadata=metadata,
             )
         return self.passed(
-            f"All {len(scored)} senders meet the health threshold of "
-            f"{options.minimum_score:g}.",
+            f"All {len(scored)} senders meet the health threshold of {options.minimum_score:g}.",
             metadata=metadata,
         )
 
@@ -387,8 +385,7 @@ class SenderHealthUnavailable(Rule):
         "a campaign whose senders are fine."
     )
     remediation = (
-        "Grant the API key accounts:read, or supply health_score values in your "
-        "senders file."
+        "Grant the API key accounts:read, or supply health_score values in your senders file."
     )
 
     def evaluate(
@@ -447,9 +444,7 @@ class SenderErrorState(_SenderRule):
         errored = [s for s in ctx.senders if self.is_errored(s)]
         pending = [s for s in ctx.senders if s.setup_pending is True]
         warmup_issues = [
-            s
-            for s in ctx.senders
-            if (s.warmup_status or "").strip().lower() in UNHEALTHY_WARMUP
+            s for s in ctx.senders if (s.warmup_status or "").strip().lower() in UNHEALTHY_WARMUP
         ]
         if not errored and not pending and not warmup_issues:
             return self.passed(f"No error state reported for {len(ctx.senders)} senders.")

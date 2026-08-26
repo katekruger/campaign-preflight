@@ -20,10 +20,11 @@ The server refuses to start if any of the first three is violated.
 
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Final, List, Optional
+from typing import Any, Final
 
 from .. import __version__
 from ..config import PreflightConfig, load_config, option_defaults, safe_resolve
@@ -34,12 +35,12 @@ from .formatting import summarize_report
 from .protocol import MCPServer, Tool
 
 __all__ = [
-    "build_server",
-    "list_tool_specs",
-    "tool_input_schema",
-    "main",
     "MUTATING_VERBS",
     "READ_ONLY_PREFIX",
+    "build_server",
+    "list_tool_specs",
+    "main",
+    "tool_input_schema",
 ]
 
 SERVER_NAME: Final = "campaign-preflight"
@@ -47,11 +48,28 @@ READ_ONLY_PREFIX: Final = "READ-ONLY"
 
 # Any of these appearing in a tool name is a defect. Asserted at build time so
 # the server refuses to start rather than exposing a write-shaped tool.
-MUTATING_VERBS: Final[frozenset] = frozenset(
+MUTATING_VERBS: Final[frozenset[str]] = frozenset(
     {
-        "activate", "launch", "send", "create", "update", "move", "patch",
-        "delete", "approve", "write", "edit", "add", "remove", "start",
-        "pause", "resume", "import", "upload", "set", "modify",
+        "activate",
+        "launch",
+        "send",
+        "create",
+        "update",
+        "move",
+        "patch",
+        "delete",
+        "approve",
+        "write",
+        "edit",
+        "add",
+        "remove",
+        "start",
+        "pause",
+        "resume",
+        "import",
+        "upload",
+        "set",
+        "modify",
     }
 )
 
@@ -59,7 +77,7 @@ MAX_SAMPLES_CEILING: Final = 25
 
 # Applied to every tool. MCP clients surface these to the user, so an agent's
 # operator can see the guarantee without reading the source.
-READ_ONLY_ANNOTATIONS: Final[Dict[str, Any]] = {
+READ_ONLY_ANNOTATIONS: Final[dict[str, Any]] = {
     "readOnlyHint": True,
     "destructiveHint": False,
     "idempotentHint": True,
@@ -79,9 +97,9 @@ INSTRUCTIONS: Final = (
 )
 
 
-def _error(message: str, *, hint: Optional[str] = None) -> Dict[str, Any]:
+def _error(message: str, *, hint: str | None = None) -> dict[str, Any]:
     """A structured error payload. Never raises out of a tool."""
-    payload: Dict[str, Any] = {"ok": False, "error": redact_secrets(message)}
+    payload: dict[str, Any] = {"ok": False, "error": redact_secrets(message)}
     if hint:
         payload["hint"] = redact_secrets(hint)
     return payload
@@ -95,11 +113,11 @@ def _resolve_input(path: str, label: str) -> Path:
     return resolved
 
 
-def _load_config(config_path: Optional[str]) -> PreflightConfig:
+def _load_config(config_path: str | None) -> PreflightConfig:
     return load_config(config_path) if config_path else PreflightConfig()
 
 
-def _clamp_samples(value: Optional[int]) -> int:
+def _clamp_samples(value: int | None) -> int:
     if value is None:
         return 5
     try:
@@ -113,7 +131,7 @@ def _clamp_samples(value: Optional[int]) -> int:
 # ---------------------------------------------------------------------------
 
 
-def preflight_demo(max_samples: int = 5) -> Dict[str, Any]:
+def preflight_demo(max_samples: int = 5) -> dict[str, Any]:
     import asyncio
 
     try:
@@ -126,13 +144,13 @@ def preflight_demo(max_samples: int = 5) -> Dict[str, Any]:
 def preflight_files(
     campaign_path: str,
     leads_path: str,
-    senders_path: Optional[str] = None,
-    suppressions_path: Optional[str] = None,
-    evidence_path: Optional[str] = None,
-    config_path: Optional[str] = None,
+    senders_path: str | None = None,
+    suppressions_path: str | None = None,
+    evidence_path: str | None = None,
+    config_path: str | None = None,
     output_format: str = "structured",
     max_samples: int = 5,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     import asyncio
 
     try:
@@ -165,10 +183,10 @@ def preflight_files(
 
 def preflight_instantly_campaign(
     campaign_id: str,
-    config_path: Optional[str] = None,
+    config_path: str | None = None,
     max_samples: int = 5,
     lead_limit: int = 5000,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     import asyncio
 
     if not os.environ.get("INSTANTLY_API_KEY", "").strip():
@@ -212,7 +230,7 @@ def preflight_instantly_campaign(
     return summarize_report(report, max_samples=_clamp_samples(max_samples))
 
 
-def list_preflight_rules(category: Optional[str] = None) -> Dict[str, Any]:
+def list_preflight_rules(category: str | None = None) -> dict[str, Any]:
     from ..models import RuleCategory
     from ..rules import all_rules
 
@@ -243,7 +261,7 @@ def list_preflight_rules(category: Optional[str] = None) -> Dict[str, Any]:
     }
 
 
-def explain_preflight_rule(rule_id: str) -> Dict[str, Any]:
+def explain_preflight_rule(rule_id: str) -> dict[str, Any]:
     import difflib
 
     from ..rules import get_rule, known_rule_ids
@@ -278,7 +296,7 @@ def explain_preflight_rule(rule_id: str) -> Dict[str, Any]:
     }
 
 
-def validate_preflight_config(config_path: str) -> Dict[str, Any]:
+def validate_preflight_config(config_path: str) -> dict[str, Any]:
     try:
         _resolve_input(config_path, "config_path")
         config = load_config(config_path)
@@ -294,8 +312,7 @@ def validate_preflight_config(config_path: str) -> Dict[str, Any]:
         "rules_disabled": disabled,
         "target_timezone": config.settings.target_timezone,
         "evidence_evaluator": config.evidence.evaluator,
-        "sends_data_to_an_external_model": config.evidence.evaluator
-        not in {"disabled", "fixture"},
+        "sends_data_to_an_external_model": config.evidence.evaluator not in {"disabled", "fixture"},
     }
 
 
@@ -304,7 +321,7 @@ def validate_preflight_config(config_path: str) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def _schema(properties: Dict[str, Any], required: Optional[List[str]] = None) -> Dict[str, Any]:
+def _schema(properties: dict[str, Any], required: list[str] | None = None) -> dict[str, Any]:
     return {
         "type": "object",
         "properties": properties,
@@ -394,8 +411,13 @@ def build_server() -> MCPServer:
                 "category": {
                     "type": "string",
                     "enum": [
-                        "campaign", "contacts", "suppression", "personalization",
-                        "copy", "schedule", "senders",
+                        "campaign",
+                        "contacts",
+                        "suppression",
+                        "personalization",
+                        "copy",
+                        "schedule",
+                        "senders",
                     ],
                 }
             }
@@ -429,12 +451,12 @@ def build_server() -> MCPServer:
     return server
 
 
-def list_tool_specs(server: MCPServer) -> List[Tool]:
+def list_tool_specs(server: MCPServer) -> list[Tool]:
     """The server's registered tools."""
     return server.list_tools()
 
 
-def tool_input_schema(tool: Any) -> Dict[str, Any]:
+def tool_input_schema(tool: Any) -> dict[str, Any]:
     """A tool's input JSON Schema, whatever the attribute is called."""
     for attribute in ("input_schema", "inputSchema"):
         schema = getattr(tool, attribute, None)
@@ -443,7 +465,7 @@ def tool_input_schema(tool: Any) -> Dict[str, Any]:
     return {}
 
 
-def _shape(report: Any, output_format: str, max_samples: int) -> Dict[str, Any]:
+def _shape(report: Any, output_format: str, max_samples: int) -> dict[str, Any]:
     """Structured summary, optionally with a rendered document attached."""
     payload = summarize_report(report, max_samples=max_samples)
     fmt = (output_format or "structured").strip().lower()
@@ -503,10 +525,9 @@ def main() -> None:
         stream=sys.stderr,
         format="%(levelname)s %(name)s: %(message)s",
     )
-    try:
+    # A client disconnecting is a normal end to a stdio session, not an error.
+    with contextlib.suppress(KeyboardInterrupt):
         build_server().serve_stdio()
-    except KeyboardInterrupt:  # pragma: no cover - interactive only
-        pass
 
 
 if __name__ == "__main__":  # pragma: no cover

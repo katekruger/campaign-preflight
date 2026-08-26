@@ -11,7 +11,7 @@ L-009,jules.marchetti@ironvale.example.com,Jules,Marchetti,Ironvale Manufacturin
 L-010,r.santos@clearwater.example.com,,Santos,Clearwater Utilities,clearwater.example.com,Procurement Lead,US,Clearwater Utilities is modernizing its metering estate.,not_contacted
 L-011,dana.whitfield@@meridian..example.com,Dana,Whitfield,Meridian Partners,meridian.example.com,Partner,US,Meridian Partners added two operating partners this year.,not_contacted
 L-012,info@summitforge.example.com,,,Summitforge Tools,summitforge.example.com,,DE,,not_contacted
-L-013,kaya.lindqvist@gmail.com,Kaya,Lindqvist,Fjord Analytics,fjord.example.com,Founder,NO,Fjord Analytics presented at a Nordic data conference.,not_contacted
+L-013,synthetic-demo-contact@gmail.com,Kaya,Lindqvist,Fjord Analytics,fjord.example.com,Founder,NO,Fjord Analytics presented at a Nordic data conference.,not_contacted
 L-014,omar.haddad@quarrystone.example.com,Omar,Haddad,,,,AE,,not_contacted
 L-015,lena.fischer@alpenweg.example.com,Lena,Fischer,Alpenweg Group,alpenweg.example.com,Head of Sales,AT,"Hi {{first_name}}, saw that {{company_name}} just expanded.",not_contacted
 L-016,test.user@driftwood.example.com,TBD,Doe,Acme Inc,driftwood.example.com,N/A,US,Test test.,not_contacted

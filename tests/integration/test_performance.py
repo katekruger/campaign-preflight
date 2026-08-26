@@ -53,8 +53,16 @@ campaign:
 """
 
 HEADERS = [
-    "id", "email", "first_name", "last_name", "company_name",
-    "company_domain", "job_title", "country", "personalization", "status",
+    "id",
+    "email",
+    "first_name",
+    "last_name",
+    "company_name",
+    "company_domain",
+    "job_title",
+    "country",
+    "personalization",
+    "status",
 ]
 
 

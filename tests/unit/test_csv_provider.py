@@ -36,7 +36,11 @@ def write(tmp_path: Path, name: str, content: str | bytes) -> Path:
 
 class TestLeadsCsv:
     def test_reads_a_simple_file(self, tmp_path: Path) -> None:
-        path = write(tmp_path, "leads.csv", HEADER + "ana@corp.example.com,Ana,Diaz,Corp,corp.example.com,VP\n")
+        path = write(
+            tmp_path,
+            "leads.csv",
+            HEADER + "ana@corp.example.com,Ana,Diaz,Corp,corp.example.com,VP\n",
+        )
         leads, warnings, truncated = read_leads(path)
         assert len(leads) == 1
         assert leads[0].email == "ana@corp.example.com"
@@ -60,19 +64,26 @@ class TestLeadsCsv:
         assert leads[0].custom_variables == {"funding_stage": "Series B"}
 
     def test_utf8_bom_is_handled(self, tmp_path: Path) -> None:
-        content = ("﻿" + HEADER + "ana@corp.example.com,Ana,Diaz,Corp,corp.example.com,VP\n")
+        content = "﻿" + HEADER + "ana@corp.example.com,Ana,Diaz,Corp,corp.example.com,VP\n"
         path = write(tmp_path, "leads.csv", content.encode("utf-8"))
         leads, _, _ = read_leads(path)
         assert len(leads) == 1 and leads[0].first_name == "Ana"
 
     def test_windows_line_endings_are_handled(self, tmp_path: Path) -> None:
-        content = HEADER.replace("\n", "\r\n") + "ana@corp.example.com,Ana,Diaz,Corp,corp.example.com,VP\r\n"
+        content = (
+            HEADER.replace("\n", "\r\n")
+            + "ana@corp.example.com,Ana,Diaz,Corp,corp.example.com,VP\r\n"
+        )
         path = write(tmp_path, "leads.csv", content)
         leads, _, _ = read_leads(path)
         assert len(leads) == 1 and leads[0].job_title == "VP"
 
     def test_blank_rows_are_reported_not_silently_skipped(self, tmp_path: Path) -> None:
-        path = write(tmp_path, "leads.csv", HEADER + "\n" + "ana@corp.example.com,Ana,Diaz,Corp,c.example.com,VP\n")
+        path = write(
+            tmp_path,
+            "leads.csv",
+            HEADER + "\n" + "ana@corp.example.com,Ana,Diaz,Corp,c.example.com,VP\n",
+        )
         leads, warnings, _ = read_leads(path)
         assert len(leads) == 1
         assert any("blank row" in w for w in warnings)
@@ -85,13 +96,17 @@ class TestLeadsCsv:
         assert any("header has 6" in w for w in warnings)
 
     def test_long_row_is_kept_and_reported(self, tmp_path: Path) -> None:
-        path = write(tmp_path, "leads.csv", HEADER + "a@c.example.com,A,B,C,d.example.com,VP,extra,more\n")
+        path = write(
+            tmp_path, "leads.csv", HEADER + "a@c.example.com,A,B,C,d.example.com,VP,extra,more\n"
+        )
         leads, warnings, _ = read_leads(path)
         assert len(leads) == 1
         assert any("extra field" in w for w in warnings)
 
     def test_duplicate_columns_are_reported_and_folded(self, tmp_path: Path) -> None:
-        path = write(tmp_path, "leads.csv", "email,Company,company_name\na@c.example.com,,Corp Two\n")
+        path = write(
+            tmp_path, "leads.csv", "email,Company,company_name\na@c.example.com,,Corp Two\n"
+        )
         leads, warnings, _ = read_leads(path)
         assert any("duplicate column" in w for w in warnings)
         assert leads[0].company_name == "Corp Two", "first non-empty value wins"
@@ -102,7 +117,9 @@ class TestLeadsCsv:
         assert any("blank header" in w for w in warnings)
 
     def test_malformed_emails_are_preserved(self, tmp_path: Path) -> None:
-        path = write(tmp_path, "leads.csv", HEADER + "not-an-email,Ana,Diaz,Corp,c.example.com,VP\n")
+        path = write(
+            tmp_path, "leads.csv", HEADER + "not-an-email,Ana,Diaz,Corp,c.example.com,VP\n"
+        )
         leads, _, _ = read_leads(path)
         assert leads[0].email == "not-an-email"
         assert leads[0].normalized_email == "not-an-email"
@@ -135,19 +152,29 @@ class TestLeadsCsv:
 
     def test_very_long_field_is_read_not_crashed(self, tmp_path: Path) -> None:
         long_value = "x" * 200_000
-        path = write(tmp_path, "leads.csv", HEADER + f'a@c.example.com,Ana,Diaz,"{long_value}",c.example.com,VP\n')
+        path = write(
+            tmp_path,
+            "leads.csv",
+            HEADER + f'a@c.example.com,Ana,Diaz,"{long_value}",c.example.com,VP\n',
+        )
         leads, _, _ = read_leads(path)
         assert len(leads[0].company_name or "") == 200_000
 
     def test_quoted_embedded_newlines(self, tmp_path: Path) -> None:
-        path = write(tmp_path, "leads.csv", HEADER + 'a@c.example.com,Ana,Diaz,"Corp\nTwo",c.example.com,VP\n')
+        path = write(
+            tmp_path,
+            "leads.csv",
+            HEADER + 'a@c.example.com,Ana,Diaz,"Corp\nTwo",c.example.com,VP\n',
+        )
         leads, _, _ = read_leads(path)
         assert leads[0].company_name == "Corp\nTwo"
 
 
 class TestSuppressionsCsv:
     def test_value_column(self, tmp_path: Path) -> None:
-        path = write(tmp_path, "s.csv", "value,is_domain\na@c.example.com,false\nblocked.example.com,true\n")
+        path = write(
+            tmp_path, "s.csv", "value,is_domain\na@c.example.com,false\nblocked.example.com,true\n"
+        )
         entries, _ = read_suppressions(path)
         assert entries[0].value == "a@c.example.com" and not entries[0].is_domain
         assert entries[1].value == "blocked.example.com" and entries[1].is_domain
@@ -157,7 +184,9 @@ class TestSuppressionsCsv:
         assert entries[0].is_domain
 
     def test_email_and_domain_columns(self, tmp_path: Path) -> None:
-        entries, _ = read_suppressions(write(tmp_path, "s.csv", "email,domain\na@c.example.com,\n,x.example.com\n"))
+        entries, _ = read_suppressions(
+            write(tmp_path, "s.csv", "email,domain\na@c.example.com,\n,x.example.com\n")
+        )
         assert len(entries) == 2
         assert entries[1].is_domain
 
@@ -191,9 +220,7 @@ class TestCampaignDocument:
         by_name, _ = parse_campaign(
             {"campaign": {"schedule": {"windows": [{"days": ["mon", "fri"]}]}}}
         )
-        by_number, _ = parse_campaign(
-            {"campaign": {"schedule": {"windows": [{"days": [1, 5]}]}}}
-        )
+        by_number, _ = parse_campaign({"campaign": {"schedule": {"windows": [{"days": [1, 5]}]}}})
         assert by_name.schedule.windows[0].days == by_number.schedule.windows[0].days
 
     def test_instantly_style_day_map_parses(self) -> None:

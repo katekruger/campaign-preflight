@@ -75,7 +75,10 @@ class TestDuplicates:
             make_lead(email="ana@corp.example.com", id="b"),
             *make_leads(8),
         ]
-        assert run_rule("contacts.duplicate_email", make_context(leads=leads)).status is RuleStatus.PASS
+        assert (
+            run_rule("contacts.duplicate_email", make_context(leads=leads)).status
+            is RuleStatus.PASS
+        )
         result = run_rule("contacts.duplicate_normalized_email", make_context(leads=leads))
         assert result.affected_record_count == 2
 
@@ -103,7 +106,9 @@ class TestDuplicates:
     def test_same_person_at_same_company_is_reported(self) -> None:
         leads = [
             make_lead(email="a@corp.example.com", id="a", first_name="Ana", last_name="Diaz"),
-            make_lead(email="ana.diaz@corp.example.com", id="b", first_name="Ana", last_name="Diaz"),
+            make_lead(
+                email="ana.diaz@corp.example.com", id="b", first_name="Ana", last_name="Diaz"
+            ),
             *make_leads(8),
         ]
         result = run_rule("contacts.duplicate_company_contact", make_context(leads=leads))
@@ -112,12 +117,20 @@ class TestDuplicates:
     def test_same_person_at_different_companies_is_not_a_duplicate(self) -> None:
         leads = [
             make_lead(
-                email="a@one.example.com", id="a", first_name="Ana", last_name="Diaz",
-                company_name="One", company_domain="one.example.com",
+                email="a@one.example.com",
+                id="a",
+                first_name="Ana",
+                last_name="Diaz",
+                company_name="One",
+                company_domain="one.example.com",
             ),
             make_lead(
-                email="a@two.example.com", id="b", first_name="Ana", last_name="Diaz",
-                company_name="Two", company_domain="two.example.com",
+                email="a@two.example.com",
+                id="b",
+                first_name="Ana",
+                last_name="Diaz",
+                company_name="Two",
+                company_domain="two.example.com",
             ),
             *make_leads(8),
         ]
@@ -195,7 +208,9 @@ class TestHygiene:
 
     def test_named_addresses_are_not_role_addresses(self) -> None:
         leads = make_leads(10)
-        assert run_rule("contacts.role_address", make_context(leads=leads)).status is RuleStatus.PASS
+        assert (
+            run_rule("contacts.role_address", make_context(leads=leads)).status is RuleStatus.PASS
+        )
 
     def test_impossible_country_values_are_found(self) -> None:
         leads = [make_lead(id="a", country="9"), *make_leads(9)]

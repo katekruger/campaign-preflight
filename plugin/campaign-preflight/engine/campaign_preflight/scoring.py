@@ -27,7 +27,7 @@ from .models import (
     Severity,
 )
 
-__all__ = ["score_results", "decide_readiness", "SCORING_FORMULA"]
+__all__ = ["SCORING_FORMULA", "decide_readiness", "score_results"]
 
 SCORING_FORMULA = """\
 score = 100 - sum(weight[status][severity] for every FAIL and WARN)
@@ -69,11 +69,7 @@ def score_results(
         if result.status is RuleStatus.PASS:
             continue
 
-        weights = (
-            scoring.fail_weights
-            if result.status is RuleStatus.FAIL
-            else scoring.warn_weights
-        )
+        weights = scoring.fail_weights if result.status is RuleStatus.FAIL else scoring.warn_weights
         points = float(weights.get(result.severity, 0.0))
         if points <= 0:
             continue
@@ -88,11 +84,9 @@ def score_results(
         )
 
     total = sum(d.points for d in deductions)
-    final = int(round(max(0.0, min(100.0, 100.0 - total))))
+    final = round(max(0.0, min(100.0, 100.0 - total)))
 
-    unknown_ids = [
-        r.rule_id for r in results if r.status is RuleStatus.UNKNOWN
-    ]
+    unknown_ids = [r.rule_id for r in results if r.status is RuleStatus.UNKNOWN]
     if critical_unknowns:
         confidence = Confidence.LOW
     elif unknown_ids:
@@ -102,8 +96,7 @@ def score_results(
 
     if deductions:
         lines = ", ".join(
-            f"{d.rule_id} {d.status.value}/{d.severity.value} -{d.points:g}"
-            for d in deductions
+            f"{d.rule_id} {d.status.value}/{d.severity.value} -{d.points:g}" for d in deductions
         )
         explanation = f"100 - ({lines}) = {final}"
     else:
@@ -135,9 +128,7 @@ def decide_readiness(
 
     if any(r.severity is Severity.BLOCKER for r in failures):
         return Readiness.NOT_READY
-    if config.scoring.high_failure_blocks and any(
-        r.severity is Severity.HIGH for r in failures
-    ):
+    if config.scoring.high_failure_blocks and any(r.severity is Severity.HIGH for r in failures):
         return Readiness.NOT_READY
     if breakdown.critical_unknown_rule_ids:
         return Readiness.INCOMPLETE

@@ -1,0 +1,155 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build a release from"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify before releasing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - run: uv sync --all-extras --frozen
+
+      - name: Lint, typecheck, test
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+          uv run mypy
+          uv run pytest -q
+
+      - name: The tag matches the version in pyproject.toml
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          [ -n "$TAG" ] || TAG="${{ inputs.tag }}"
+          TAG="${TAG#v}"
+          VERSION="$(uv run python -c 'from campaign_preflight import __version__; print(__version__)')"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::tag v$TAG does not match __version__ $VERSION"
+            exit 1
+          fi
+          echo "tag and package version agree: $VERSION"
+
+      - name: The changelog has an entry for this version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          [ -n "$TAG" ] || TAG="${{ inputs.tag }}"
+          TAG="${TAG#v}"
+          if ! grep -q "\[$TAG\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no section for $TAG"
+            exit 1
+          fi
+          echo "changelog entry present for $TAG"
+
+  build:
+    name: Build distributions
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Build wheel and sdist
+        run: uv build
+
+      - name: Validate package metadata
+        run: uvx twine check --strict dist/*
+
+      - name: The wheel installs and runs with no dependencies
+        run: |
+          uv venv --python 3.9 fresh
+          uv pip install --python fresh/bin/python --no-deps dist/*.whl
+          fresh/bin/campaign-preflight version
+          fresh/bin/campaign-preflight demo --quiet
+
+      - name: Build the Cowork plugin
+        run: uv run --frozen --all-extras python scripts/build_plugin.py
+
+      - name: Checksums
+        run: |
+          cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          [ -n "$TAG" ] || TAG="${{ inputs.tag }}"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/$TAG/CHANGELOG.md) for what changed.
+
+          **Install**
+
+          \`\`\`bash
+          pipx install campaign-preflight
+          campaign-preflight demo
+          \`\`\`
+
+          No API key, no network, no runtime dependencies. Python 3.9+.
+
+          **Cowork plugin**: download \`campaign-preflight.plugin\` below and install it in Cowork.
+
+          Verify downloads against \`SHA256SUMS\`." \
+            --verify-tag \
+            dist/*
+
+  # PyPI publication is deliberately NOT automatic. Enable it by creating a
+  # "pypi" environment with a trusted publisher, then removing the `if: false`.
+  # Until then a release produces GitHub artifacts only.
+  pypi:
+    name: Publish to PyPI
+    if: false
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/campaign-preflight
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/
+
+      - name: Remove non-Python artifacts
+        run: rm -f dist/SHA256SUMS dist/*.plugin
+
+      - uses: pypa/gh-action-pypi-publish@release/v1

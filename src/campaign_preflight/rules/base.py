@@ -30,12 +30,12 @@ from ..models import (
 
 __all__ = [
     "Rule",
-    "register",
-    "get_rule",
     "all_rules",
-    "known_rule_ids",
-    "rules_for_category",
     "clear_registry",
+    "get_rule",
+    "known_rule_ids",
+    "register",
+    "rules_for_category",
 ]
 
 _REGISTRY: dict[str, Rule] = {}

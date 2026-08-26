@@ -30,13 +30,13 @@ from ..models import (
 )
 
 __all__ = [
-    "ProviderResult",
     "CampaignProvider",
-    "ok",
+    "ProviderResult",
     "failed",
-    "unsupported",
     "forbidden",
     "misconfigured",
+    "ok",
+    "unsupported",
 ]
 
 T = TypeVar("T")
@@ -108,9 +108,7 @@ def failed(capability: Capability, detail: str) -> ProviderResult[Any]:
 
 def unsupported(capability: Capability, detail: str) -> ProviderResult[Any]:
     """This provider cannot supply the capability at all."""
-    return ProviderResult(
-        capability=capability, status=CapabilityStatus.UNSUPPORTED, detail=detail
-    )
+    return ProviderResult(capability=capability, status=CapabilityStatus.UNSUPPORTED, detail=detail)
 
 
 def forbidden(capability: Capability, detail: str) -> ProviderResult[Any]:
@@ -159,9 +157,7 @@ class CampaignProvider(abc.ABC):
 
     # -- optional ----------------------------------------------------------
 
-    async def get_sender_health(
-        self, senders: list[Sender]
-    ) -> ProviderResult[list[Sender]]:
+    async def get_sender_health(self, senders: list[Sender]) -> ProviderResult[list[Sender]]:
         """Senders enriched with health/warmup data.
 
         Default: unsupported. Providers that cannot measure deliverability must
@@ -182,15 +178,11 @@ class CampaignProvider(abc.ABC):
         self, campaign_id: str | None = None
     ) -> ProviderResult[dict[str, Any]]:
         """Aggregate counts used to cross-check lead totals."""
-        return unsupported(
-            Capability.ANALYTICS, f"{self.name} does not expose campaign analytics"
-        )
+        return unsupported(Capability.ANALYTICS, f"{self.name} does not expose campaign analytics")
 
     async def list_evidence(self) -> ProviderResult[list[SourceEvidence]]:
         """Research evidence backing personalization claims."""
-        return unsupported(
-            Capability.EVIDENCE, f"{self.name} does not carry evidence documents"
-        )
+        return unsupported(Capability.EVIDENCE, f"{self.name} does not carry evidence documents")
 
     async def list_claims(self) -> ProviderResult[list[PersonalizationClaim]]:
         """Explicit personalization claims, when the input supplies them."""

@@ -18,28 +18,28 @@ from datetime import time
 from typing import Any, Final
 
 __all__ = [
-    "normalize_email",
-    "email_is_syntactically_valid",
-    "domain_of",
-    "normalize_domain",
-    "normalize_text",
-    "strip_control_characters",
-    "has_control_characters",
-    "is_formula_injection",
-    "neutralize_formula",
-    "hash_ref",
-    "find_template_tokens",
-    "find_unresolved_tokens",
-    "extract_urls",
-    "malformed_urls",
-    "parse_clock_time",
+    "FREE_EMAIL_DOMAINS",
+    "PLACEHOLDER_VALUES",
+    "ROLE_LOCAL_PARTS",
     "canonical_header",
     "coerce_bool",
     "coerce_int",
     "collapse_whitespace",
-    "FREE_EMAIL_DOMAINS",
-    "ROLE_LOCAL_PARTS",
-    "PLACEHOLDER_VALUES",
+    "domain_of",
+    "email_is_syntactically_valid",
+    "extract_urls",
+    "find_template_tokens",
+    "find_unresolved_tokens",
+    "has_control_characters",
+    "hash_ref",
+    "is_formula_injection",
+    "malformed_urls",
+    "neutralize_formula",
+    "normalize_domain",
+    "normalize_email",
+    "normalize_text",
+    "parse_clock_time",
+    "strip_control_characters",
 ]
 
 BOM: Final = "﻿"
@@ -173,14 +173,16 @@ def is_formula_injection(value: str | None) -> bool:
     """
     if not value:
         return False
-    text = str(value).lstrip(" \t\r\n ")
+    # \xa0 is a non-breaking space: a leading one still lets a spreadsheet
+    # see the "=" that follows it, so it must be stripped before the check.
+    text = str(value).lstrip(" \t\r\n\xa0")
     if not text:
         return False
     if not text.startswith(_FORMULA_PREFIXES):
         return False
-    if text[0] in "+-" and len(text) > 1 and (text[1].isdigit() or text[1] in ".,"):
-        return False  # plain signed number
-    return True
+    # A leading sign followed by a digit is a plain signed number, not a formula.
+    signed_number = text[0] in "+-" and len(text) > 1 and (text[1].isdigit() or text[1] in ".,")
+    return not signed_number
 
 
 def neutralize_formula(value: str) -> str:
@@ -469,35 +471,160 @@ def coerce_int(value: Any) -> int | None:
 # Reference data
 # ---------------------------------------------------------------------------
 
-FREE_EMAIL_DOMAINS: Final[frozenset[str]] = frozenset({
-    "aol.com", "comcast.net", "fastmail.com", "gmail.com", "gmx.com", "gmx.de",
-    "googlemail.com", "hey.com", "hotmail.co.uk", "hotmail.com", "hotmail.fr",
-    "icloud.com", "inbox.com", "libero.it", "live.com", "mac.com", "mail.com",
-    "mail.ru", "me.com", "msn.com", "naver.com", "orange.fr", "outlook.com",
-    "pm.me", "proton.me", "protonmail.com", "qq.com", "rediffmail.com",
-    "rocketmail.com", "seznam.cz", "sina.com", "t-online.de", "tutanota.com",
-    "verizon.net", "wanadoo.fr", "web.de", "yahoo.co.in", "yahoo.co.jp",
-    "yahoo.co.uk", "yahoo.com", "yahoo.fr", "yandex.com", "yandex.ru",
-    "ymail.com", "zoho.com",
-})
+FREE_EMAIL_DOMAINS: Final[frozenset[str]] = frozenset(
+    {
+        "aol.com",
+        "comcast.net",
+        "fastmail.com",
+        "gmail.com",
+        "gmx.com",
+        "gmx.de",
+        "googlemail.com",
+        "hey.com",
+        "hotmail.co.uk",
+        "hotmail.com",
+        "hotmail.fr",
+        "icloud.com",
+        "inbox.com",
+        "libero.it",
+        "live.com",
+        "mac.com",
+        "mail.com",
+        "mail.ru",
+        "me.com",
+        "msn.com",
+        "naver.com",
+        "orange.fr",
+        "outlook.com",
+        "pm.me",
+        "proton.me",
+        "protonmail.com",
+        "qq.com",
+        "rediffmail.com",
+        "rocketmail.com",
+        "seznam.cz",
+        "sina.com",
+        "t-online.de",
+        "tutanota.com",
+        "verizon.net",
+        "wanadoo.fr",
+        "web.de",
+        "yahoo.co.in",
+        "yahoo.co.jp",
+        "yahoo.co.uk",
+        "yahoo.com",
+        "yahoo.fr",
+        "yandex.com",
+        "yandex.ru",
+        "ymail.com",
+        "zoho.com",
+    }
+)
 
-ROLE_LOCAL_PARTS: Final[frozenset[str]] = frozenset({
-    "abuse", "accounting", "accounts", "admin", "administrator", "billing",
-    "careers", "compliance", "contact", "customerservice", "enquiries",
-    "enquiry", "feedback", "finance", "help", "hello", "hi", "hr", "info",
-    "inquiries", "inquiry", "invoices", "it", "jobs", "legal", "mail",
-    "marketing", "media", "news", "newsletter", "noreply", "no-reply",
-    "office", "orders", "partners", "payments", "postmaster", "press",
-    "privacy", "purchasing", "recruiting", "sales", "security", "service",
-    "support", "team", "webmaster", "welcome",
-})
+ROLE_LOCAL_PARTS: Final[frozenset[str]] = frozenset(
+    {
+        "abuse",
+        "accounting",
+        "accounts",
+        "admin",
+        "administrator",
+        "billing",
+        "careers",
+        "compliance",
+        "contact",
+        "customerservice",
+        "enquiries",
+        "enquiry",
+        "feedback",
+        "finance",
+        "help",
+        "hello",
+        "hi",
+        "hr",
+        "info",
+        "inquiries",
+        "inquiry",
+        "invoices",
+        "it",
+        "jobs",
+        "legal",
+        "mail",
+        "marketing",
+        "media",
+        "news",
+        "newsletter",
+        "noreply",
+        "no-reply",
+        "office",
+        "orders",
+        "partners",
+        "payments",
+        "postmaster",
+        "press",
+        "privacy",
+        "purchasing",
+        "recruiting",
+        "sales",
+        "security",
+        "service",
+        "support",
+        "team",
+        "webmaster",
+        "welcome",
+    }
+)
 
-PLACEHOLDER_VALUES: Final[frozenset[str]] = frozenset({
-    "-", "--", "?", "??", "n/a", "na", "none", "nil", "null", "nan", "tbd",
-    "todo", "to do", "unknown", "test", "testing", "test test", "asdf",
-    "asdfasdf", "qwerty", "xxx", "xxxx", "xx", "foo", "bar", "foobar", "baz",
-    "lorem", "lorem ipsum", "example", "sample", "placeholder", "your name",
-    "first name", "firstname", "last name", "company", "company name",
-    "acme", "acme inc", "acme corp", "john doe", "jane doe", "no name",
-    "not available", "not found", "undefined", "#n/a", "#value!", "#ref!",
-})
+PLACEHOLDER_VALUES: Final[frozenset[str]] = frozenset(
+    {
+        "-",
+        "--",
+        "?",
+        "??",
+        "n/a",
+        "na",
+        "none",
+        "nil",
+        "null",
+        "nan",
+        "tbd",
+        "todo",
+        "to do",
+        "unknown",
+        "test",
+        "testing",
+        "test test",
+        "asdf",
+        "asdfasdf",
+        "qwerty",
+        "xxx",
+        "xxxx",
+        "xx",
+        "foo",
+        "bar",
+        "foobar",
+        "baz",
+        "lorem",
+        "lorem ipsum",
+        "example",
+        "sample",
+        "placeholder",
+        "your name",
+        "first name",
+        "firstname",
+        "last name",
+        "company",
+        "company name",
+        "acme",
+        "acme inc",
+        "acme corp",
+        "john doe",
+        "jane doe",
+        "no name",
+        "not available",
+        "not found",
+        "undefined",
+        "#n/a",
+        "#value!",
+        "#ref!",
+    }
+)

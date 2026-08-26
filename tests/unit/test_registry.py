@@ -14,7 +14,6 @@ from campaign_preflight.models import (
     Severity,
 )
 from campaign_preflight.rules import all_rules, get_rule, known_rule_ids
-
 from helpers import make_context, run_rule
 
 ALL = all_rules()
@@ -27,7 +26,7 @@ def test_registry_is_populated() -> None:
 
 def test_rule_ids_are_unique_and_sorted() -> None:
     assert len(RULE_IDS) == len(set(RULE_IDS))
-    assert RULE_IDS == sorted(RULE_IDS), "all_rules() must return a stable order"
+    assert sorted(RULE_IDS) == RULE_IDS, "all_rules() must return a stable order"
 
 
 @pytest.mark.parametrize("rule", ALL, ids=RULE_IDS)

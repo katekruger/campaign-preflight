@@ -11,9 +11,8 @@ rather than letting every suppression check quietly report "clean".
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from collections import Counter
+from dataclasses import dataclass
 from typing import ClassVar
 
 from ..config import PreflightConfig, RuleOptions
@@ -52,7 +51,7 @@ def _lead_domains(lead: Lead) -> set[str]:
 
 class _SuppressionRule(Rule):
     category = RuleCategory.SUPPRESSION
-    requires = (Capability.LEADS, Capability.SUPPRESSIONS)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.LEADS, Capability.SUPPRESSIONS)
 
     @staticmethod
     def limit(config: PreflightConfig) -> int:
@@ -125,9 +124,7 @@ class DomainSuppressed(_SuppressionRule):
                 metadata={"suppressed_domains": len(domains)},
             )
         hit_domains = Counter(
-            domain
-            for lead in affected
-            for domain in sorted(_lead_domains(lead) & domains)
+            domain for lead in affected for domain in sorted(_lead_domains(lead) & domains)
         )
         return self.failed(
             f"{len(affected)} contact(s) belong to a suppressed domain.",
@@ -148,7 +145,7 @@ class DuplicateInCampaign(_SuppressionRule):
     title = "No contact is already present in the campaign"
     category = RuleCategory.SUPPRESSION
     severity = Severity.MEDIUM
-    requires = (Capability.LEADS,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.LEADS,)
     description = (
         "Detects contacts the provider reports as already contacted or completed "
         "in this campaign. Only checkable when the provider exposes lead status; "
@@ -196,7 +193,7 @@ class _DomainPolicyRule(_SuppressionRule):
     list is not a finding.
     """
 
-    requires = (Capability.LEADS,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.LEADS,)
     setting_name: ClassVar[str] = ""
     label: ClassVar[str] = ""
 
@@ -262,8 +259,7 @@ class CompetitorDomain(_DomainPolicyRule):
     setting_name = "competitor_domains"
     label = "competitor"
     description = (
-        "Competitors receiving your sequence see your positioning, pricing hooks, "
-        "and cadence."
+        "Competitors receiving your sequence see your positioning, pricing hooks, and cadence."
     )
     remediation = "Remove competitor contacts from the campaign."
 
@@ -274,7 +270,7 @@ class RestrictedRegion(_SuppressionRule):
     title = "No contact is in a restricted region"
     category = RuleCategory.SUPPRESSION
     severity = Severity.HIGH
-    requires = (Capability.LEADS,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.LEADS,)
     description = (
         "Contacts in regions your organization has chosen not to contact. This is "
         "an ORGANIZATION-CONFIGURED OUTREACH POLICY, not a legal compliance check. "
@@ -306,8 +302,7 @@ class RestrictedRegion(_SuppressionRule):
                 affected.append(lead)
         if affected:
             return self.failed(
-                f"{len(affected)} contact(s) are in a region your outreach policy "
-                f"excludes.",
+                f"{len(affected)} contact(s) are in a region your outreach policy excludes.",
                 affected=len(affected),
                 samples=self.sample([lead.label for lead in affected], self.limit(config)),
                 metadata={
@@ -324,9 +319,7 @@ class RestrictedRegion(_SuppressionRule):
                 remediation="Populate country or region so this policy can be applied.",
                 metadata={"contacts_without_region": unknown_region},
             )
-        return self.passed(
-            f"No contact is in one of the {len(restricted)} restricted regions."
-        )
+        return self.passed(f"No contact is in one of the {len(restricted)} restricted regions.")
 
 
 @register

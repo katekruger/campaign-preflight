@@ -109,7 +109,7 @@ reach the command line, `ps` output, or a build log.
 
 ```yaml
 campaign-preflight:
-  image: python:3.12-slim
+  image: python:3.9-slim   # any 3.9+ works; there are no dependencies
   script:
     - pip install campaign-preflight
     - campaign-preflight check --campaign campaign.yaml --leads leads.csv --fail-on blocker

@@ -14,16 +14,14 @@ accusing your copy of fabrication.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import re
 from collections import Counter, defaultdict
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, ClassVar
 
 from ..config import PreflightConfig, RuleOptions
 from ..models import (
     Capability,
-    CapabilityStatus,
     Lead,
     PreflightContext,
     RuleCategory,
@@ -34,7 +32,6 @@ from ..normalization import (
     collapse_whitespace,
     find_unresolved_tokens,
     hash_ref,
-    normalize_domain,
 )
 from .base import Rule, register
 
@@ -43,7 +40,7 @@ __all__: list[str] = []
 
 class _PersonalizationRule(Rule):
     category = RuleCategory.PERSONALIZATION
-    requires = (Capability.LEADS,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.LEADS,)
 
     @staticmethod
     def limit(config: PreflightConfig) -> int:
@@ -143,9 +140,7 @@ class MissingRequiredVariable(_PersonalizationRule):
                 samples=samples,
                 metadata=metadata,
             )
-        return self.warn(
-            summary, affected=len(affected), samples=samples, metadata=metadata
-        )
+        return self.warn(summary, affected=len(affected), samples=samples, metadata=metadata)
 
 
 @register
@@ -174,8 +169,7 @@ class UnresolvedToken(_PersonalizationRule):
         if not affected:
             return self.passed("No unrendered template tokens in contact personalization.")
         return self.failed(
-            f"{len(affected)} contact(s) have unrendered template tokens in their "
-            f"personalization.",
+            f"{len(affected)} contact(s) have unrendered template tokens in their personalization.",
             affected=len(affected),
             samples=self.sample([lead.label for lead in affected], self.limit(config)),
             metadata={"tokens": dict(tokens.most_common(10))},
@@ -226,13 +220,9 @@ class EmptyPersonalization(_PersonalizationRule):
         samples = self.sample([lead.label for lead in affected], self.limit(config))
         metadata = {"ratio": round(ratio, 4), "affected": len(affected)}
         if ratio >= options.blocker_ratio:
-            return self.failed(
-                summary, affected=len(affected), samples=samples, metadata=metadata
-            )
+            return self.failed(summary, affected=len(affected), samples=samples, metadata=metadata)
         if ratio >= options.warning_ratio:
-            return self.warn(
-                summary, affected=len(affected), samples=samples, metadata=metadata
-            )
+            return self.warn(summary, affected=len(affected), samples=samples, metadata=metadata)
         return self.warn(
             summary,
             severity=Severity.LOW,
@@ -278,15 +268,11 @@ class DuplicatePersonalization(_PersonalizationRule):
         for lead in populated:
             groups[collapse_whitespace(str(lead.personalization)).lower()].append(lead)
         repeated = {
-            text: leads
-            for text, leads in groups.items()
-            if len(leads) >= options.min_group_size
+            text: leads for text, leads in groups.items() if len(leads) >= options.min_group_size
         }
         affected = [lead for leads in repeated.values() for lead in leads]
         if not affected:
-            return self.passed(
-                f"Personalization is distinct across {len(populated)} contacts."
-            )
+            return self.passed(f"Personalization is distinct across {len(populated)} contacts.")
         ratio = len(affected) / len(populated)
         largest = max(len(v) for v in repeated.values())
         summary = (
@@ -308,9 +294,7 @@ class DuplicatePersonalization(_PersonalizationRule):
                 metadata=metadata,
             )
         if ratio >= options.warning_ratio:
-            return self.warn(
-                summary, affected=len(affected), samples=samples, metadata=metadata
-            )
+            return self.warn(summary, affected=len(affected), samples=samples, metadata=metadata)
         return self.warn(
             summary,
             severity=Severity.LOW,
@@ -359,9 +343,7 @@ class CompanyMismatch(_PersonalizationRule):
     def evaluate(
         self, ctx: PreflightContext, options: RuleOptions, config: PreflightConfig
     ) -> RuleResult:
-        candidates = [
-            lead for lead in ctx.leads if lead.personalization and lead.company_name
-        ]
+        candidates = [lead for lead in ctx.leads if lead.personalization and lead.company_name]
         if not candidates:
             return self.not_applicable(
                 "No contact has both a company name and a personalization value."
@@ -414,9 +396,7 @@ class FirstNameMismatch(_PersonalizationRule):
     def evaluate(
         self, ctx: PreflightContext, options: RuleOptions, config: PreflightConfig
     ) -> RuleResult:
-        candidates = [
-            lead for lead in ctx.leads if lead.personalization and lead.first_name
-        ]
+        candidates = [lead for lead in ctx.leads if lead.personalization and lead.first_name]
         if not candidates:
             return self.not_applicable(
                 "No contact has both a first name and a personalization value."
@@ -433,7 +413,9 @@ class FirstNameMismatch(_PersonalizationRule):
                 continue
             affected.append(lead)
             if len(examples) < 3:
-                examples.append(f"{lead.label}: greets '{match.group(1)}', name is '{lead.first_name}'")
+                examples.append(
+                    f"{lead.label}: greets '{match.group(1)}', name is '{lead.first_name}'"
+                )
         if not affected:
             return self.passed(
                 f"Every greeting matches the contact's first name across "
@@ -468,7 +450,7 @@ def _lead_refs(lead: Lead) -> set[str]:
 class _ClaimRule(_PersonalizationRule):
     """Base for rules that need the evidence capability."""
 
-    requires = (Capability.LEADS, Capability.EVIDENCE)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.LEADS, Capability.EVIDENCE)
 
 
 @register
@@ -490,8 +472,7 @@ class UnsupportedClaim(_ClaimRule):
     ) -> RuleResult:
         if not ctx.claims:
             return self.unknown(
-                "No personalization claims were supplied, so factual support "
-                "cannot be assessed.",
+                "No personalization claims were supplied, so factual support cannot be assessed.",
                 explanation=(
                     "Claim checking needs structured claims in the evidence file. "
                     "Without them this tool will not guess whether your copy is "
@@ -502,10 +483,7 @@ class UnsupportedClaim(_ClaimRule):
         unsupported: list[str] = []
         checked = 0
         for claim in ctx.claims:
-            numbers = {
-                match.group(1).replace(",", "")
-                for match in _NUMBER_RE.finditer(claim.text)
-            }
+            numbers = {match.group(1).replace(",", "") for match in _NUMBER_RE.finditer(claim.text)}
             numbers |= {n.replace(",", "") for n in claim.numeric_values}
             if not numbers:
                 continue
@@ -513,9 +491,7 @@ class UnsupportedClaim(_ClaimRule):
             if not attached:
                 continue  # covered by personalization.claim_without_evidence
             checked += 1
-            corpus = " ".join(
-                f"{e.excerpt} {e.title or ''}".replace(",", "") for e in attached
-            )
+            corpus = " ".join(f"{e.excerpt} {e.title or ''}".replace(",", "") for e in attached)
             missing = sorted(n for n in numbers if n not in corpus)
             if missing:
                 unsupported.append(
@@ -563,15 +539,13 @@ class ClaimWithoutEvidence(_ClaimRule):
                 orphans.append(f"{claim.claim_id}: no evidence attached")
             elif not any(e in known for e in claim.evidence_ids):
                 dangling.append(
-                    f"{claim.claim_id}: references unknown evidence "
-                    f"{', '.join(claim.evidence_ids)}"
+                    f"{claim.claim_id}: references unknown evidence {', '.join(claim.evidence_ids)}"
                 )
         problems = orphans + dangling
         if not problems:
             return self.passed(f"All {len(ctx.claims)} claims resolve to supplied evidence.")
         return self.warn(
-            f"{len(problems)} of {len(ctx.claims)} claims have no usable evidence "
-            f"reference.",
+            f"{len(problems)} of {len(ctx.claims)} claims have no usable evidence reference.",
             severity=Severity.HIGH if len(problems) == len(ctx.claims) else Severity.MEDIUM,
             affected=len(problems),
             samples=self.sample(problems, self.limit(config)),
@@ -613,8 +587,7 @@ class StaleEvidence(_ClaimRule):
         problems = stale + undated + empty
         if not problems:
             return self.passed(
-                f"All {len(ctx.evidence)} evidence records are dated and within "
-                f"{max_age} days."
+                f"All {len(ctx.evidence)} evidence records are dated and within {max_age} days."
             )
         return self.warn(
             f"{len(problems)} evidence record issue(s): {len(stale)} stale, "
@@ -655,16 +628,20 @@ class EvidenceLeadMismatch(_ClaimRule):
         problems: list[str] = []
         for record in referenced:
             key = str(record.lead_ref).strip().lower()
-            lead = index.get(key)
-            if lead is None:
+            matched: Lead | None = index.get(key)
+            if matched is None:
                 problems.append(f"{record.evidence_id}: lead_ref matches no contact")
                 continue
-            if record.company_name and lead.company_name:
-                if not (_company_tokens(record.company_name) & _company_tokens(lead.company_name)):
-                    problems.append(
-                        f"{record.evidence_id}: company '{record.company_name}' does not "
-                        f"match contact company '{lead.company_name}'"
-                    )
+            lead = matched
+            if (
+                record.company_name
+                and lead.company_name
+                and not (_company_tokens(record.company_name) & _company_tokens(lead.company_name))
+            ):
+                problems.append(
+                    f"{record.evidence_id}: company '{record.company_name}' does not "
+                    f"match contact company '{lead.company_name}'"
+                )
         if not problems:
             return self.passed(
                 f"All {len(referenced)} referenced evidence records match a contact."
@@ -699,12 +676,35 @@ class SensitiveInference(_PersonalizationRule):
     remediation = "Read the flagged personalization and rewrite it around business context."
 
     _TERMS = (
-        "pregnan", "maternity leave", "cancer", "diagnos", "illness", "disabilit",
-        "mental health", "depression", "rehab", "divorce", "bankrupt",
-        "foreclosure", "laid off", "layoff", "fired from", "immigration status",
-        "visa status", "green card", "religio", "church", "mosque", "synagogue",
-        "ethnicit", "race", "sexual orientation", "lgbt", "political party",
-        "voted for", "campaign donation",
+        "pregnan",
+        "maternity leave",
+        "cancer",
+        "diagnos",
+        "illness",
+        "disabilit",
+        "mental health",
+        "depression",
+        "rehab",
+        "divorce",
+        "bankrupt",
+        "foreclosure",
+        "laid off",
+        "layoff",
+        "fired from",
+        "immigration status",
+        "visa status",
+        "green card",
+        "religio",
+        "church",
+        "mosque",
+        "synagogue",
+        "ethnicit",
+        "race",
+        "sexual orientation",
+        "lgbt",
+        "political party",
+        "voted for",
+        "campaign donation",
     )
 
     def evaluate(
@@ -763,9 +763,7 @@ class ExcessivePersonalizationLength(_PersonalizationRule):
         if not populated:
             return self.not_applicable("No contact carries a personalization value.")
         affected = [
-            lead
-            for lead in populated
-            if len(str(lead.personalization)) > options.max_characters
+            lead for lead in populated if len(str(lead.personalization)) > options.max_characters
         ]
         if not affected:
             return self.passed(
@@ -831,8 +829,7 @@ class PromptInjection(_PersonalizationRule):
         if not affected:
             return self.passed("No prompt-injection patterns found in personalization.")
         return self.failed(
-            f"{len(affected)} contact(s) have prompt-injection text in their "
-            f"personalization.",
+            f"{len(affected)} contact(s) have prompt-injection text in their personalization.",
             severity=Severity.BLOCKER,
             affected=len(affected),
             samples=self.sample([lead.label for lead in affected], self.limit(config)),

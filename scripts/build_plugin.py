@@ -49,9 +49,7 @@ def check_sync() -> list[str]:
         return [f"vendored engine is missing: {VENDORED.relative_to(REPO_ROOT)}"]
 
     expected = {p.relative_to(SOURCE) for p in _source_files()}
-    actual = {
-        p.relative_to(VENDORED) for p in VENDORED.rglob("*") if p.is_file() and _wanted(p)
-    }
+    actual = {p.relative_to(VENDORED) for p in VENDORED.rglob("*") if p.is_file() and _wanted(p)}
     for missing in sorted(expected - actual):
         problems.append(f"missing from the plugin: {missing}")
     for extra in sorted(actual - expected):
@@ -130,7 +128,7 @@ def smoke_test() -> list[str]:
         (["demo", "--quiet"], "CAMPAIGN PREFLIGHT"),
         (["rules", "list"], "rule(s)."),
     ):
-        result = subprocess.run(  # noqa: S603 - fixed argv, no shell
+        result = subprocess.run(  # fixed argv, no shell
             [str(launcher), *args], capture_output=True, text=True, timeout=120
         )
         if expect not in result.stdout:
@@ -162,9 +160,7 @@ def main() -> int:
             print("Plugin is not current:", file=sys.stderr)
             for problem in problems:
                 print(f"  - {problem}", file=sys.stderr)
-            print(
-                "\nRegenerate with: uv run python scripts/build_plugin.py", file=sys.stderr
-            )
+            print("\nRegenerate with: uv run python scripts/build_plugin.py", file=sys.stderr)
             return 1
         print("Plugin is in sync with src/ and structurally valid.")
         return 0

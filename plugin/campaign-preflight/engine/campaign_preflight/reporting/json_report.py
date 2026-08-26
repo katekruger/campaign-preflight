@@ -14,7 +14,7 @@ from typing import Any
 from ..models import PreflightReport
 from .redaction import redact_samples, redact_text
 
-__all__ = ["render_json", "report_to_dict", "load_schema", "SCHEMA_PATH"]
+__all__ = ["SCHEMA_PATH", "load_schema", "render_json", "report_to_dict"]
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "report-1.0.0.json"
 
@@ -44,9 +44,7 @@ def report_to_dict(report: PreflightReport, *, max_samples: int | None = None) -
             "affected_record_samples": list(
                 redact_samples(r.affected_record_samples, redacted=redacted, limit=max_samples)
             ),
-            "evidence": list(
-                redact_samples(r.evidence, redacted=redacted, limit=max_samples)
-            ),
+            "evidence": list(redact_samples(r.evidence, redacted=redacted, limit=max_samples)),
             "remediation": redact_text(r.remediation, redacted=redacted),
             "metadata": r.metadata,
         }
@@ -86,9 +84,7 @@ def report_to_dict(report: PreflightReport, *, max_samples: int | None = None) -
                 for d in report.score_breakdown.deductions
             ],
             "excluded_rule_ids": list(report.score_breakdown.excluded_rule_ids),
-            "critical_unknown_rule_ids": list(
-                report.score_breakdown.critical_unknown_rule_ids
-            ),
+            "critical_unknown_rule_ids": list(report.score_breakdown.critical_unknown_rule_ids),
         },
         "counts": {
             "leads": report.lead_count,
@@ -109,9 +105,7 @@ def report_to_dict(report: PreflightReport, *, max_samples: int | None = None) -
     }
 
 
-def render_json(
-    report: PreflightReport, *, max_samples: int | None = None, indent: int = 2
-) -> str:
+def render_json(report: PreflightReport, *, max_samples: int | None = None, indent: int = 2) -> str:
     """Render a report as deterministic JSON."""
     payload = report_to_dict(report, max_samples=max_samples)
     # sort_keys is deliberately off: the hand-written key order above is more

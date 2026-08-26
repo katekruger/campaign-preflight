@@ -152,8 +152,10 @@ class TestArtifactsAndPlaceholders:
         assert result.severity is Severity.BLOCKER
 
     def test_no_spam_word_folklore_is_implemented(self) -> None:
-        """"Free" and "act now" are not evidence of anything; we do not flag them."""
-        ctx = with_steps(make_step(0, subject="Act now for a free trial", body="Limited offer, buy now."))
+        """ "Free" and "act now" are not evidence of anything; we do not flag them."""
+        ctx = with_steps(
+            make_step(0, subject="Act now for a free trial", body="Limited offer, buy now.")
+        )
         for rule_id in ("copy.placeholder_text", "copy.generation_artifacts"):
             assert run_rule(rule_id, ctx).status is RuleStatus.PASS
 

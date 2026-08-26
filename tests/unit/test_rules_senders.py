@@ -35,14 +35,19 @@ class TestEnabledState:
         assert result.severity is Severity.BLOCKER
 
     def test_some_disabled_warns(self) -> None:
-        senders = [make_sender(), make_sender("b@example.com", enabled=False, status_label="paused")]
+        senders = [
+            make_sender(),
+            make_sender("b@example.com", enabled=False, status_label="paused"),
+        ]
         result = run_rule("senders.disabled", make_context(senders=senders))
         assert result.status is RuleStatus.WARN
         assert result.affected_record_count == 1
 
     def test_no_state_reported_is_unknown(self) -> None:
         senders = [make_sender(enabled=None, status_label=None)]
-        assert run_rule("senders.disabled", make_context(senders=senders)).status is RuleStatus.UNKNOWN
+        assert (
+            run_rule("senders.disabled", make_context(senders=senders)).status is RuleStatus.UNKNOWN
+        )
 
 
 class TestHealth:
@@ -87,9 +92,7 @@ class TestHealth:
         ctx = make_context(
             capabilities={Capability.SENDER_HEALTH: CapabilityStatus.UNAVAILABLE_PERMISSIONS}
         )
-        assert (
-            run_rule("senders.health_below_threshold", ctx).status is RuleStatus.UNKNOWN
-        )
+        assert run_rule("senders.health_below_threshold", ctx).status is RuleStatus.UNKNOWN
 
 
 class TestCapacity:
@@ -136,8 +139,14 @@ class TestCapacity:
 
 class TestAvailabilityAndErrors:
     def test_at_least_one_usable_passes(self) -> None:
-        senders = [make_sender(), make_sender("b@example.com", enabled=False, status_label="paused")]
-        assert run_rule("senders.all_unavailable", make_context(senders=senders)).status is RuleStatus.PASS
+        senders = [
+            make_sender(),
+            make_sender("b@example.com", enabled=False, status_label="paused"),
+        ]
+        assert (
+            run_rule("senders.all_unavailable", make_context(senders=senders)).status
+            is RuleStatus.PASS
+        )
 
     def test_all_unusable_is_a_blocker(self) -> None:
         senders = [
@@ -150,13 +159,19 @@ class TestAvailabilityAndErrors:
 
     def test_setup_pending_counts_as_unusable(self) -> None:
         senders = [make_sender(setup_pending=True)]
-        assert run_rule("senders.all_unavailable", make_context(senders=senders)).status is RuleStatus.FAIL
+        assert (
+            run_rule("senders.all_unavailable", make_context(senders=senders)).status
+            is RuleStatus.FAIL
+        )
 
     @pytest.mark.parametrize(
         "label", ["connection_error", "soft_bounce_error", "sending_error", "suspended"]
     )
     def test_error_states_are_reported(self, label: str) -> None:
-        senders = [make_sender(status_label=label, status_is_error=True), make_sender("b@example.com")]
+        senders = [
+            make_sender(status_label=label, status_is_error=True),
+            make_sender("b@example.com"),
+        ]
         result = run_rule("senders.error_state", make_context(senders=senders))
         assert result.status is RuleStatus.FAIL
         assert result.severity is Severity.HIGH
@@ -169,7 +184,9 @@ class TestAvailabilityAndErrors:
     @pytest.mark.parametrize("warmup", ["banned", "issue", "spam_folder"])
     def test_warmup_problems_are_reported(self, warmup: str) -> None:
         senders = [make_sender(warmup_status=warmup), make_sender("b@example.com")]
-        assert run_rule("senders.error_state", make_context(senders=senders)).status is RuleStatus.FAIL
+        assert (
+            run_rule("senders.error_state", make_context(senders=senders)).status is RuleStatus.FAIL
+        )
 
     def test_healthy_senders_report_no_errors(self) -> None:
         assert run_rule("senders.error_state", make_context()).status is RuleStatus.PASS
@@ -186,9 +203,7 @@ class TestHealthAvailability:
         assert result.affected_record_count == 1
 
     def test_unsupported_capability_is_unknown(self) -> None:
-        ctx = make_context(
-            capabilities={Capability.SENDER_HEALTH: CapabilityStatus.UNSUPPORTED}
-        )
+        ctx = make_context(capabilities={Capability.SENDER_HEALTH: CapabilityStatus.UNSUPPORTED})
         result = run_rule("senders.health_unavailable", ctx)
         assert result.status is RuleStatus.UNKNOWN
         assert "No deliverability score is being invented" in result.explanation.replace("\n", " ")

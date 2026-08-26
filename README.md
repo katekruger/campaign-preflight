@@ -6,7 +6,8 @@ problems before launch.**
 
 [![CI](https://github.com/katekruger/campaign-preflight/actions/workflows/ci.yml/badge.svg)](https://github.com/katekruger/campaign-preflight/actions/workflows/ci.yml)
 [![Security](https://github.com/katekruger/campaign-preflight/actions/workflows/security.yml/badge.svg)](https://github.com/katekruger/campaign-preflight/actions/workflows/security.yml)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen.svg)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Every outbound team has shipped a campaign with a mistake in it. Someone who
@@ -30,7 +31,12 @@ pipx install campaign-preflight
 campaign-preflight demo
 ```
 
-No API key. No network. No configuration.
+No API key. No network. No configuration. **No dependencies** — the whole thing
+is standard library, Python 3.9+, so it also runs straight from a checkout:
+
+```bash
+PYTHONPATH=src python3 -m campaign_preflight.cli demo
+```
 
 ```
 CAMPAIGN PREFLIGHT
@@ -211,15 +217,26 @@ Exit codes carry the verdict, so this drops straight into a pipeline. See
 ### As an MCP server
 
 ```bash
-claude mcp add campaign-preflight \
-  --env INSTANTLY_API_KEY=your-key-here \
-  -- uv run --directory /path/to/campaign-preflight campaign-preflight-mcp
+claude mcp add campaign-preflight -- campaign-preflight-mcp
 ```
 
 > Check campaign abc123 before I activate it.
 
 Six read-only tools. Nothing that could activate, edit, import, or send. Setup
 for Claude Code and Claude Desktop: [docs/mcp.md](docs/mcp.md).
+
+### As a Cowork plugin
+
+For people who would rather describe a campaign than write a YAML file:
+
+```bash
+uv run python scripts/build_plugin.py     # produces dist/campaign-preflight.plugin
+```
+
+Install that file in Cowork and ask in plain language — upload a lead list,
+paste one, or just describe the sequence and let it build the campaign file for
+you. Same 76 checks, same engine, no install step for the recipient. See
+[plugin/campaign-preflight/README.md](plugin/campaign-preflight/README.md).
 
 ---
 
@@ -366,6 +383,11 @@ cd campaign-preflight
 uv sync --all-extras
 uv run pytest
 ```
+
+The package itself has no runtime dependencies; the dev group exists for the
+test suite (pytest, hypothesis, jsonschema), the linters, and two libraries used
+only as test oracles — `httpx` for the optional Instantly provider and `PyYAML`
+to differentially test the bundled YAML parser against.
 
 ## Security
 

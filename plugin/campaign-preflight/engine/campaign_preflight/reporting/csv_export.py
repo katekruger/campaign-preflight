@@ -16,7 +16,7 @@ from ..models import PreflightReport, RuleStatus
 from ..normalization import neutralize_formula
 from .redaction import redact_text
 
-__all__ = ["write_affected_csv", "AFFECTED_COLUMNS"]
+__all__ = ["AFFECTED_COLUMNS", "write_affected_csv"]
 
 AFFECTED_COLUMNS = ("rule_id", "severity", "status", "affected_record", "remediation")
 

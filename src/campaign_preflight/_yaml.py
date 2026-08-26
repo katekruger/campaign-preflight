@@ -28,7 +28,7 @@ from __future__ import annotations
 import datetime as _datetime
 import json
 import re
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 __all__ = ["YamlError", "safe_load"]
 
@@ -36,7 +36,7 @@ __all__ = ["YamlError", "safe_load"]
 class YamlError(ValueError):
     """A YAML document could not be parsed."""
 
-    def __init__(self, message: str, line_number: Optional[int] = None) -> None:
+    def __init__(self, message: str, line_number: int | None = None) -> None:
         self.line_number = line_number
         if line_number is not None:
             message = f"line {line_number}: {message}"
@@ -88,7 +88,7 @@ def _parse_timestamp(token: str) -> Any:
 class _Line:
     """One significant line: its indent, its content, and its source number."""
 
-    __slots__ = ("indent", "content", "number")
+    __slots__ = ("content", "indent", "number")
 
     def __init__(self, indent: int, content: str, number: int) -> None:
         self.indent = indent
@@ -110,17 +110,21 @@ def _strip_comment(text: str) -> str:
             in_single = not in_single
         elif char == '"' and not in_single:
             in_double = not in_double
-        elif char == "#" and not in_single and not in_double:
-            if index == 0 or text[index - 1] in " \t":
-                return text[:index]
+        elif (
+            char == "#"
+            and not in_single
+            and not in_double
+            and (index == 0 or text[index - 1] in " \t")
+        ):
+            return text[:index]
     return text
 
 
-def _scan(source: str) -> List[_Line]:
+def _scan(source: str) -> list[_Line]:
     """Split into significant lines, rejecting unsupported constructs."""
-    lines: List[_Line] = []
+    lines: list[_Line] = []
     raw_lines = source.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-    inside_block_scalar_until_indent: Optional[int] = None
+    inside_block_scalar_until_indent: int | None = None
 
     for number, raw in enumerate(raw_lines, start=1):
         if "\t" in raw[: len(raw) - len(raw.lstrip(" \t"))]:
@@ -132,11 +136,10 @@ def _scan(source: str) -> List[_Line]:
         # Lines inside a block scalar are opaque: no comment stripping, no
         # construct checks. They are consumed by the block-scalar reader.
         if inside_block_scalar_until_indent is not None:
-            if stripped and indent <= inside_block_scalar_until_indent:
-                inside_block_scalar_until_indent = None
-            else:
+            if not stripped or indent > inside_block_scalar_until_indent:
                 lines.append(_Line(indent, raw, number))
                 continue
+            inside_block_scalar_until_indent = None
 
         if not stripped or stripped.startswith("#"):
             continue
@@ -199,12 +202,12 @@ def _parse_scalar(text: str, line_number: int) -> Any:
     return token
 
 
-def _split_flow(body: str, line_number: int) -> List[str]:
+def _split_flow(body: str, line_number: int) -> list[str]:
     """Split a flow collection body on top-level commas."""
-    parts: List[str] = []
+    parts: list[str] = []
     depth = 0
     in_single = in_double = False
-    current: List[str] = []
+    current: list[str] = []
     for char in body:
         if char == "'" and not in_double:
             in_single = not in_single
@@ -242,7 +245,7 @@ def _parse_flow(token: str, line_number: int) -> Any:
     if text.startswith("{"):
         if not text.endswith("}"):
             raise YamlError("unterminated flow mapping", line_number)
-        mapping: dict = {}
+        mapping: dict[str, Any] = {}
         for part in _split_flow(text[1:-1], line_number):
             if ":" not in part:
                 raise YamlError(f"flow mapping entry {part!r} has no value", line_number)
@@ -252,7 +255,7 @@ def _parse_flow(token: str, line_number: int) -> Any:
     raise YamlError(f"unrecognized flow collection: {text!r}", line_number)  # pragma: no cover
 
 
-def _split_key(content: str, line_number: int) -> Optional[Tuple[str, str]]:
+def _split_key(content: str, line_number: int) -> tuple[str, str] | None:
     """Split ``key: value`` at the first top-level colon, or return None."""
     in_single = in_double = False
     depth = 0
@@ -278,11 +281,11 @@ def _split_key(content: str, line_number: int) -> Optional[Tuple[str, str]]:
 
 
 class _Parser:
-    def __init__(self, lines: List[_Line]) -> None:
+    def __init__(self, lines: list[_Line]) -> None:
         self.lines = lines
         self.position = 0
 
-    def peek(self) -> Optional[_Line]:
+    def peek(self) -> _Line | None:
         return self.lines[self.position] if self.position < len(self.lines) else None
 
     def parse_document(self) -> Any:
@@ -299,8 +302,8 @@ class _Parser:
             return self.parse_sequence(indent)
         return self.parse_mapping(indent)
 
-    def parse_sequence(self, indent: int) -> List[Any]:
-        items: List[Any] = []
+    def parse_sequence(self, indent: int) -> list[Any]:
+        items: list[Any] = []
         while True:
             line = self.peek()
             if line is None or line.indent < indent:
@@ -339,9 +342,9 @@ class _Parser:
 
     def parse_inline_mapping_start(
         self, key: str, value: str, item_indent: int, line: _Line
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Handle ``- key: value`` plus any further keys indented beneath it."""
-        mapping: dict = {}
+        mapping: dict[str, Any] = {}
         block = _BLOCK_SCALAR.match(value)
         if block:
             mapping[key] = self.read_block_scalar(block.group(1), block.group(2), item_indent - 1)
@@ -363,8 +366,8 @@ class _Parser:
                 mapping[extra_key] = extra_value
         return mapping
 
-    def parse_mapping(self, indent: int) -> dict:
-        mapping: dict = {}
+    def parse_mapping(self, indent: int) -> dict[str, Any]:
+        mapping: dict[str, Any] = {}
         while True:
             line = self.peek()
             if line is None or line.indent < indent:
@@ -407,7 +410,7 @@ class _Parser:
 
     def read_block_scalar(self, style: str, chomp: str, parent_indent: int) -> str:
         """Consume the indented lines belonging to a ``|`` or ``>`` scalar."""
-        raw_lines: List[str] = []
+        raw_lines: list[str] = []
         while True:
             line = self.peek()
             if line is None:
@@ -426,7 +429,7 @@ class _Parser:
 
         if style == ">":
             # Folded: blank lines become paragraph breaks, others join with a space.
-            folded: List[str] = []
+            folded: list[str] = []
             for entry in body:
                 if not entry.strip():
                     folded.append("\n")
@@ -434,7 +437,7 @@ class _Parser:
                     folded[-1] = f"{folded[-1]} {entry.strip()}"
                 else:
                     folded.append(entry.strip())
-            text = "".join(x if x == "\n" else x for x in folded)
+            text = "".join(folded)
             text = " ".join(part for part in text.split("\n") if part).strip()
             return text if chomp == "-" else f"{text}\n"
 

@@ -12,7 +12,14 @@ uv sync --all-extras
 uv run pytest
 ```
 
-Python 3.11 or newer; the project pins 3.12 for development.
+Python 3.9 or newer. Development pins 3.12, but **the package must keep working
+on 3.9** — that is the interpreter Cowork ships with, and the plugin depends on
+it. CI tests 3.9 through 3.13.
+
+The package has **no runtime dependencies** and adding one is a breaking change
+for the plugin. If you need functionality from a library, implement the subset
+you need (see `_yaml.py`) or make it an optional extra behind a lazy import (see
+the Instantly provider).
 
 ## Before you push
 
@@ -112,6 +119,7 @@ capability to `SUPPORTED_OK`, so a test only describes what it is testing:
 
 ```python
 from helpers import make_context, make_lead, run_rule
+
 
 def test_something():
     ctx = make_context(leads=[make_lead(email="bad")])

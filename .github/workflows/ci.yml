@@ -1,0 +1,280 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_COLOR: "1"
+
+jobs:
+  lint:
+    name: Lint and typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --all-extras --frozen
+
+      - name: Ruff format
+        run: uv run ruff format --check --diff .
+
+      - name: Ruff lint
+        run: uv run ruff check --output-format=github .
+
+      - name: mypy
+        run: uv run mypy
+
+  test:
+    name: Tests (${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.9 is the floor: it is the interpreter Cowork ships with, and the
+        # plugin depends on the package running there.
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --all-extras --python ${{ matrix.python }}
+
+      - name: Tests
+        run: >
+          uv run --python ${{ matrix.python }} pytest
+          --cov=campaign_preflight
+          --cov-report=term-missing
+          --cov-report=xml
+          -q
+
+      - name: Enforce coverage on the safety-critical modules
+        if: matrix.python == '3.12'
+        run: |
+          uv run python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+
+          # These are the modules where a gap is a safety problem, not a style one.
+          CRITICAL = {
+              "campaign_preflight/scoring.py": 95,
+              "campaign_preflight/engine.py": 85,
+              "campaign_preflight/providers/instantly_transport.py": 95,
+              "campaign_preflight/reporting/redaction.py": 95,
+              "campaign_preflight/errors.py": 85,
+              "campaign_preflight/_yaml.py": 85,
+          }
+          tree = ET.parse("coverage.xml")
+          rates = {
+              c.get("filename"): float(c.get("line-rate", 0)) * 100
+              for c in tree.iter("class")
+          }
+          failed = False
+          for name, floor in sorted(CRITICAL.items()):
+              actual = next((v for k, v in rates.items() if k and k.endswith(name)), None)
+              if actual is None:
+                  print(f"::warning::no coverage recorded for {name}")
+                  continue
+              status = "ok " if actual >= floor else "LOW"
+              print(f"  {status} {name}: {actual:.1f}% (floor {floor}%)")
+              if actual < floor:
+                  print(f"::error::{name} coverage {actual:.1f}% is below the {floor}% floor")
+                  failed = True
+          sys.exit(1 if failed else 0)
+          PY
+
+      - name: Upload coverage
+        if: matrix.python == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+
+  stdlib-only:
+    name: Runs on a bare interpreter
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.9"
+
+      - name: Confirm nothing is installed
+        shell: bash
+        run: |
+          python -c "
+          import importlib.util as u
+          bad = [m for m in ('pydantic','typer','rich','yaml','httpx','mcp') if u.find_spec(m)]
+          assert not bad, f'these should not be importable here: {bad}'
+          print('confirmed: no third-party packages available')
+          "
+
+      # The real test: the shipped package must work with nothing installed,
+      # because that is the situation inside a Cowork plugin.
+      - name: Demo
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: python -m campaign_preflight.cli demo --quiet
+
+      - name: File check against every example
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: |
+          set +e
+          for example in clean_campaign risky_campaign incomplete_campaign; do
+            args="--campaign examples/$example/campaign.yaml --leads examples/$example/leads.csv"
+            [ -f "examples/$example/suppressions.csv" ] && args="$args --suppressions examples/$example/suppressions.csv"
+            [ -f "examples/$example/evidence.json" ] && args="$args --evidence examples/$example/evidence.json"
+            [ -f "examples/$example/config.yaml" ] && args="$args --config examples/$example/config.yaml"
+            python -m campaign_preflight.cli check $args --quiet
+            echo "  $example -> exit $?"
+          done
+
+      - name: MCP server answers over stdio
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: |
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | python -m campaign_preflight.mcp.server > mcp-out.jsonl
+          python -c "
+          import json
+          tools = None
+          for line in open('mcp-out.jsonl'):
+              m = json.loads(line)
+              if m.get('id') == 2:
+                  tools = [t['name'] for t in m['result']['tools']]
+          expected = {'preflight_demo','preflight_files','preflight_instantly_campaign',
+                      'list_preflight_rules','explain_preflight_rule','validate_preflight_config'}
+          assert tools is not None, 'no tools/list response'
+          assert set(tools) == expected, f'unexpected tool surface: {tools}'
+          print('MCP exposes exactly the six read-only tools')
+          "
+
+  determinism:
+    name: Deterministic output and schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - run: uv sync --all-extras --frozen
+
+      - name: The demo produces byte-identical JSON across runs
+        run: |
+          uv run campaign-preflight demo --format json > first.json
+          uv run campaign-preflight demo --format json > second.json
+          uv run python -c "
+          import json
+          a, b = json.load(open('first.json')), json.load(open('second.json'))
+          for key in ('generated_at', 'duration_seconds'):
+              a.pop(key, None); b.pop(key, None)
+          assert a == b, 'the demo is not deterministic'
+          print('deterministic')
+          "
+
+      - name: JSON output validates against the published schema
+        run: |
+          uv run campaign-preflight demo --format json > report.json
+          uv run python -c "
+          import json, jsonschema
+          from campaign_preflight.reporting import load_schema
+          jsonschema.validate(json.load(open('report.json')), load_schema())
+          print('report validates against report-1.0.0.json')
+          "
+
+      - name: Exit codes match the documentation
+        run: |
+          set +e
+          uv run campaign-preflight check --campaign examples/clean_campaign/campaign.yaml \
+            --leads examples/clean_campaign/leads.csv \
+            --suppressions examples/clean_campaign/suppressions.csv \
+            --evidence examples/clean_campaign/evidence.json \
+            --config examples/clean_campaign/config.yaml -q >/dev/null
+          [ $? -eq 0 ] || { echo "::error::clean_campaign should exit 0"; exit 1; }
+          uv run campaign-preflight check --campaign examples/risky_campaign/campaign.yaml \
+            --leads examples/risky_campaign/leads.csv \
+            --suppressions examples/risky_campaign/suppressions.csv \
+            --config examples/risky_campaign/config.yaml -q >/dev/null
+          [ $? -eq 2 ] || { echo "::error::risky_campaign should exit 2"; exit 1; }
+          uv run campaign-preflight check --campaign examples/incomplete_campaign/campaign.yaml \
+            --leads examples/incomplete_campaign/leads.csv -q >/dev/null
+          [ $? -eq 3 ] || { echo "::error::incomplete_campaign should exit 3"; exit 1; }
+          echo "exit codes 0 / 2 / 3 as documented"
+
+      - name: The rule catalogue is up to date
+        run: uv run python scripts/generate_rules_doc.py --check
+
+      - name: The plugin is in sync with src/
+        run: uv run python scripts/build_plugin.py --check
+
+  build:
+    name: Package build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Build wheel and sdist
+        run: uv build
+
+      - name: Validate package metadata
+        run: uvx twine check --strict dist/*
+
+      - name: The wheel installs and runs with no dependencies
+        run: |
+          uv venv --python 3.9 fresh
+          # --no-deps proves the package genuinely needs nothing at runtime.
+          uv pip install --python fresh/bin/python --no-deps dist/*.whl
+          fresh/bin/campaign-preflight version
+          fresh/bin/campaign-preflight demo --quiet
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | fresh/bin/campaign-preflight-mcp | grep -q preflight_demo
+
+      - name: Build the Cowork plugin
+        run: uv run python scripts/build_plugin.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: distributions
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/*.plugin

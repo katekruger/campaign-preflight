@@ -21,6 +21,7 @@ class Result:
         self.stdout = stdout
         self.stderr = stderr
 
+
 WARNING_CONFIG = """\
 version: 1
 settings:
@@ -50,8 +51,10 @@ def example_args(examples_dir: Path, name: str) -> list[str]:
     directory = examples_dir / name
     args = [
         "check",
-        "--campaign", str(directory / "campaign.yaml"),
-        "--leads", str(directory / "leads.csv"),
+        "--campaign",
+        str(directory / "campaign.yaml"),
+        "--leads",
+        str(directory / "leads.csv"),
     ]
     for flag, filename in (
         ("--suppressions", "suppressions.csv"),
@@ -153,16 +156,27 @@ class TestExitCodes:
         directory = examples_dir / "clean_campaign"
         result = invoke(
             "check",
-            "--campaign", str(directory / "campaign.yaml"),
-            "--leads", str(directory / "leads.csv"),
-            "--suppressions", str(directory / "suppressions.csv"),
-            "--evidence", str(directory / "evidence.json"),
-            "--config", str(config),
+            "--campaign",
+            str(directory / "campaign.yaml"),
+            "--leads",
+            str(directory / "leads.csv"),
+            "--suppressions",
+            str(directory / "suppressions.csv"),
+            "--evidence",
+            str(directory / "evidence.json"),
+            "--config",
+            str(config),
         )
         assert result.exit_code == ExitCode.READY_WITH_WARNINGS
 
     def test_bad_input_exits_four(self, tmp_path: Path) -> None:
-        result = invoke("check", "--campaign", str(tmp_path / "nope.yaml"), "--leads", str(tmp_path / "nope.csv"))
+        result = invoke(
+            "check",
+            "--campaign",
+            str(tmp_path / "nope.yaml"),
+            "--leads",
+            str(tmp_path / "nope.csv"),
+        )
         assert result.exit_code == ExitCode.CONFIG_ERROR
 
     def test_bad_config_exits_four(self, tmp_path: Path, examples_dir: Path) -> None:
@@ -203,18 +217,21 @@ class TestFailOn:
         directory = examples_dir / "clean_campaign"
         base = [
             "check",
-            "--campaign", str(directory / "campaign.yaml"),
-            "--leads", str(directory / "leads.csv"),
-            "--suppressions", str(directory / "suppressions.csv"),
-            "--evidence", str(directory / "evidence.json"),
-            "--config", str(config),
+            "--campaign",
+            str(directory / "campaign.yaml"),
+            "--leads",
+            str(directory / "leads.csv"),
+            "--suppressions",
+            str(directory / "suppressions.csv"),
+            "--evidence",
+            str(directory / "evidence.json"),
+            "--config",
+            str(config),
         ]
         assert invoke(*base).exit_code == ExitCode.READY_WITH_WARNINGS
         assert invoke(*base, "--fail-on", "blocker").exit_code == ExitCode.READY
 
-    def test_incomplete_is_not_silenced_by_a_severity_threshold(
-        self, examples_dir: Path
-    ) -> None:
+    def test_incomplete_is_not_silenced_by_a_severity_threshold(self, examples_dir: Path) -> None:
         """A check that could not run is not a low-severity finding."""
         result = invoke(*example_args(examples_dir, "incomplete_campaign"), "--fail-on", "blocker")
         assert result.exit_code == ExitCode.INCOMPLETE
@@ -282,7 +299,9 @@ class TestValidateConfig:
 
 class TestOutputOptions:
     def test_max_samples_is_honoured(self, examples_dir: Path) -> None:
-        result = invoke(*example_args(examples_dir, "risky_campaign"), "--format", "json", "--max-samples", "1")
+        result = invoke(
+            *example_args(examples_dir, "risky_campaign"), "--format", "json", "--max-samples", "1"
+        )
         payload = json.loads(result.stdout)
         assert all(len(r["affected_record_samples"]) <= 1 for r in payload["results"])
 

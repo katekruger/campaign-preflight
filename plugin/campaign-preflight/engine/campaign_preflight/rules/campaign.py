@@ -7,8 +7,8 @@ data lives in the other rule modules.
 from __future__ import annotations
 
 from dataclasses import dataclass
-
 from datetime import timedelta
+from typing import ClassVar
 
 from ..config import PreflightConfig, RuleOptions
 from ..models import Capability, PreflightContext, RuleCategory, RuleResult, Severity
@@ -32,7 +32,7 @@ class CampaignExists(Rule):
     title = "Campaign is readable"
     category = RuleCategory.CAMPAIGN
     severity = Severity.BLOCKER
-    requires = (Capability.CAMPAIGN,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.CAMPAIGN,)
     description = (
         "Confirms the campaign could be retrieved and carries an identifier. "
         "Every other check depends on this one."
@@ -69,7 +69,7 @@ class CampaignStatusSuitable(Rule):
     title = "Campaign status is suitable for preflight"
     category = RuleCategory.CAMPAIGN
     severity = Severity.MEDIUM
-    requires = (Capability.CAMPAIGN,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.CAMPAIGN,)
     options_model = StatusOptions
     description = (
         "Preflight is meant to run before activation. A campaign that is already "
@@ -123,9 +123,7 @@ class CampaignStatusSuitable(Rule):
                     explanation=explanation,
                     metadata={"status": status},
                 )
-            return self.failed(
-                summary, explanation=explanation, metadata={"status": status}
-            )
+            return self.failed(summary, explanation=explanation, metadata={"status": status})
         if status in PREFLIGHT_READY_STATUSES:
             return self.passed(f"Campaign status is '{status}', suitable for preflight.")
         return self.unknown(
@@ -150,7 +148,7 @@ class CampaignHasSteps(Rule):
     title = "Campaign has at least one step"
     category = RuleCategory.CAMPAIGN
     severity = Severity.BLOCKER
-    requires = (Capability.CAMPAIGN,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.CAMPAIGN,)
     options_model = StepsOptions
     description = "A campaign with no enabled email step will never send anything."
     remediation = "Add at least one enabled email step to the sequence."
@@ -181,7 +179,7 @@ class CampaignHasSenders(Rule):
     title = "Campaign has at least one sender attached"
     category = RuleCategory.CAMPAIGN
     severity = Severity.BLOCKER
-    requires = (Capability.SENDERS,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.SENDERS,)
     description = "A campaign with no sending mailbox cannot deliver."
     remediation = "Attach at least one sending account to the campaign."
 
@@ -209,7 +207,7 @@ class CampaignDailyVolume(Rule):
     title = "Daily sending volume is within configured limits"
     category = RuleCategory.CAMPAIGN
     severity = Severity.HIGH
-    requires = (Capability.CAMPAIGN,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.CAMPAIGN,)
     options_model = DailyVolumeOptions
     description = (
         "High per-day volume is the single most common cause of a burned domain. "
@@ -246,15 +244,13 @@ class CampaignDailyVolume(Rule):
             )
         if limit > options.blocker_above:
             return self.failed(
-                f"Daily limit of {limit} exceeds the blocker threshold "
-                f"of {options.blocker_above}.",
+                f"Daily limit of {limit} exceeds the blocker threshold of {options.blocker_above}.",
                 severity=Severity.BLOCKER,
                 metadata={"daily_limit": limit, "threshold": options.blocker_above},
             )
         if limit > options.warning_above:
             return self.warn(
-                f"Daily limit of {limit} exceeds the warning threshold "
-                f"of {options.warning_above}.",
+                f"Daily limit of {limit} exceeds the warning threshold of {options.warning_above}.",
                 severity=Severity.MEDIUM,
                 metadata={"daily_limit": limit, "threshold": options.warning_above},
             )
@@ -271,7 +267,7 @@ class CampaignStopOnReply(Rule):
     title = "Stop-on-reply is enabled"
     category = RuleCategory.CAMPAIGN
     severity = Severity.HIGH
-    requires = (Capability.CAMPAIGN,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.CAMPAIGN,)
     description = (
         "With stop-on-reply disabled, a prospect who replies keeps receiving "
         "follow-ups. This is the most reliably damaging campaign misconfiguration."
@@ -287,8 +283,7 @@ class CampaignStopOnReply(Rule):
             return self.unknown(
                 "The provider did not report a stop-on-reply setting.",
                 explanation=(
-                    "This field was absent or unparseable. It is not being treated "
-                    "as enabled."
+                    "This field was absent or unparseable. It is not being treated as enabled."
                 ),
             )
         if campaign.stop_on_reply is False:
@@ -298,7 +293,9 @@ class CampaignStopOnReply(Rule):
             )
         note = ""
         if campaign.stop_on_auto_reply is False:
-            note = " Stop-on-auto-reply is disabled, so out-of-office replies will not pause a thread."
+            note = (
+                " Stop-on-auto-reply is disabled, so out-of-office replies will not pause a thread."
+            )
         return self.passed(
             f"Stop-on-reply is enabled.{note}",
             metadata={"stop_on_auto_reply": campaign.stop_on_auto_reply},
@@ -311,7 +308,7 @@ class CampaignHasLeads(Rule):
     title = "Campaign has leads"
     category = RuleCategory.CAMPAIGN
     severity = Severity.BLOCKER
-    requires = (Capability.LEADS,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.LEADS,)
     description = "A campaign with zero leads will not send."
     remediation = "Import leads into the campaign before activating."
 
@@ -333,7 +330,7 @@ class CampaignDateCoherence(Rule):
     title = "Campaign start and end dates are coherent"
     category = RuleCategory.CAMPAIGN
     severity = Severity.HIGH
-    requires = (Capability.CAMPAIGN,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.CAMPAIGN,)
     description = "An end date on or before the start date leaves no sending days."
     remediation = "Correct the campaign start and end dates."
 
@@ -386,7 +383,7 @@ class CampaignStartInPast(Rule):
     title = "Campaign does not start in the past"
     category = RuleCategory.CAMPAIGN
     severity = Severity.MEDIUM
-    requires = (Capability.CAMPAIGN,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.CAMPAIGN,)
     options_model = StartInPastOptions
     description = (
         "A start date well in the past usually means a campaign was copied from an "
@@ -424,7 +421,7 @@ class CampaignScheduleWindows(Rule):
     title = "Campaign schedule has at least one sending window"
     category = RuleCategory.CAMPAIGN
     severity = Severity.BLOCKER
-    requires = (Capability.CAMPAIGN,)
+    requires: ClassVar[tuple[Capability, ...]] = (Capability.CAMPAIGN,)
     description = "Without a sending window the campaign has no time in which to send."
     remediation = "Add a sending window with a start time, an end time, and active days."
 

@@ -71,9 +71,7 @@ class TestScore:
         assert verdict([result(status=RuleStatus.WARN, severity=severity)])[0] == expected
 
     def test_score_never_goes_below_zero(self) -> None:
-        results = [
-            result(f"campaign.r{i}", RuleStatus.FAIL, Severity.BLOCKER) for i in range(20)
-        ]
+        results = [result(f"campaign.r{i}", RuleStatus.FAIL, Severity.BLOCKER) for i in range(20)]
         assert verdict(results)[0] == 0
 
     def test_unknown_deducts_nothing(self) -> None:
@@ -165,7 +163,9 @@ class TestConfidence:
         assert verdict([result()])[2] is Confidence.HIGH
 
     def test_non_critical_unknown_is_medium(self) -> None:
-        assert verdict([result("campaign.start_in_past", RuleStatus.UNKNOWN)])[2] is Confidence.MEDIUM
+        assert (
+            verdict([result("campaign.start_in_past", RuleStatus.UNKNOWN)])[2] is Confidence.MEDIUM
+        )
 
     def test_critical_unknown_is_low(self) -> None:
         assert verdict([result("campaign.has_leads", RuleStatus.UNKNOWN)])[2] is Confidence.LOW

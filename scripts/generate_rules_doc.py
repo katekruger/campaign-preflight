@@ -65,8 +65,7 @@ def build() -> str:
         "",
         "# Rule catalogue",
         "",
-        f"Campaign Preflight ships **{len(rules)} rules** across "
-        f"{len(RuleCategory)} categories.",
+        f"Campaign Preflight ships **{len(rules)} rules** across {len(RuleCategory)} categories.",
         "",
         "## How to read this",
         "",

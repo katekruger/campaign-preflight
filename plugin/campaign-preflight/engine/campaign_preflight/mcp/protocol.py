@@ -24,9 +24,9 @@ import inspect
 import json
 import sys
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
 
-__all__ = ["Tool", "MCPServer", "PROTOCOL_VERSION"]
+__all__ = ["PROTOCOL_VERSION", "MCPServer", "Tool"]
 
 PROTOCOL_VERSION = "2025-06-18"
 """The MCP revision this server advertises. Clients may negotiate a different one."""
@@ -45,13 +45,13 @@ class Tool:
 
     name: str
     description: str
-    input_schema: Dict[str, Any]
+    input_schema: dict[str, Any]
     handler: Callable[..., Any]
-    annotations: Dict[str, Any] = field(default_factory=dict)
+    annotations: dict[str, Any] = field(default_factory=dict)
 
-    def spec(self) -> Dict[str, Any]:
+    def spec(self) -> dict[str, Any]:
         """The wire representation sent in a ``tools/list`` response."""
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "name": self.name,
             "description": self.description,
             "inputSchema": self.input_schema,
@@ -68,7 +68,7 @@ class MCPServer:
         self.name = name
         self.version = version
         self.instructions = instructions
-        self._tools: Dict[str, Tool] = {}
+        self._tools: dict[str, Tool] = {}
 
     # -- registration ------------------------------------------------------
 
@@ -76,10 +76,10 @@ class MCPServer:
         self,
         name: str,
         description: str,
-        input_schema: Dict[str, Any],
+        input_schema: dict[str, Any],
         handler: Callable[..., Any],
         *,
-        annotations: Optional[Dict[str, Any]] = None,
+        annotations: dict[str, Any] | None = None,
     ) -> Tool:
         if name in self._tools:
             raise ValueError(f"duplicate tool name: {name}")
@@ -93,13 +93,13 @@ class MCPServer:
         self._tools[name] = tool
         return tool
 
-    def list_tools(self) -> List[Tool]:
+    def list_tools(self) -> list[Tool]:
         """Registered tools, in registration order."""
         return list(self._tools.values())
 
     # -- dispatch ----------------------------------------------------------
 
-    def call_tool(self, name: str, arguments: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def call_tool(self, name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
         """Invoke a tool and return an MCP ``CallToolResult`` payload."""
         tool = self._tools.get(name)
         if tool is None:
@@ -110,9 +110,7 @@ class MCPServer:
         accepted = set(signature.parameters)
         unexpected = sorted(set(supplied) - accepted)
         if unexpected:
-            return _tool_error(
-                f"{name} does not accept argument(s): {', '.join(unexpected)}"
-            )
+            return _tool_error(f"{name} does not accept argument(s): {', '.join(unexpected)}")
         missing = [
             parameter
             for parameter, spec in signature.parameters.items()
@@ -123,11 +121,11 @@ class MCPServer:
 
         try:
             result = tool.handler(**supplied)
-            if inspect.isawaitable(result):
+            if inspect.iscoroutine(result):
                 import asyncio
 
                 result = asyncio.run(result)
-        except Exception as exc:  # noqa: BLE001 - a tool must never kill the server
+        except Exception as exc:
             from ..errors import redact_secrets
 
             return _tool_error(
@@ -141,7 +139,7 @@ class MCPServer:
             "isError": bool(isinstance(result, dict) and result.get("ok") is False),
         }
 
-    def handle_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def handle_message(self, message: dict[str, Any]) -> dict[str, Any] | None:
         """Handle one JSON-RPC message. Returns a response, or None for a notification."""
         method = message.get("method")
         message_id = message.get("id")
@@ -197,7 +195,7 @@ class MCPServer:
                 continue
             try:
                 response = self.handle_message(message)
-            except Exception as exc:  # noqa: BLE001 - the loop must survive anything
+            except Exception as exc:
                 from ..errors import redact_secrets
 
                 response = _error(
@@ -209,21 +207,21 @@ class MCPServer:
                 _write(sink, response)
 
 
-def _write(sink: Any, payload: Dict[str, Any]) -> None:
+def _write(sink: Any, payload: dict[str, Any]) -> None:
     """Write one protocol frame. stdout carries frames and nothing else."""
     sink.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
     sink.flush()
 
 
-def _result(message_id: Any, result: Dict[str, Any]) -> Dict[str, Any]:
+def _result(message_id: Any, result: dict[str, Any]) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": message_id, "result": result}
 
 
-def _error(message_id: Any, code: int, message: str) -> Dict[str, Any]:
+def _error(message_id: Any, code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": message_id, "error": {"code": code, "message": message}}
 
 
-def _tool_error(message: str) -> Dict[str, Any]:
+def _tool_error(message: str) -> dict[str, Any]:
     """A tool-level failure: a successful JSON-RPC result carrying isError."""
     payload = {"ok": False, "error": message}
     return {

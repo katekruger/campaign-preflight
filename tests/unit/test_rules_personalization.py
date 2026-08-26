@@ -64,7 +64,9 @@ class TestRequiredVariables:
     def test_custom_variables_satisfy_a_requirement(self) -> None:
         leads = [make_lead(id="a", custom_variables={"product_fit": "yes"})]
         config = PreflightConfig(settings={"required_variables": ["product_fit"]})
-        result = run_rule("personalization.missing_required_variable", make_context(leads=leads), config)
+        result = run_rule(
+            "personalization.missing_required_variable", make_context(leads=leads), config
+        )
         assert result.status is RuleStatus.PASS
 
     def test_no_requirements_is_not_applicable(self) -> None:
@@ -261,9 +263,7 @@ class TestClaims:
             leads=[make_lead(id="L-1", company_name="Corp Industries")],
             evidence=[evidence(company_name="Totally Different Holdings")],
         )
-        assert (
-            run_rule("personalization.evidence_lead_mismatch", ctx).status is RuleStatus.FAIL
-        )
+        assert run_rule("personalization.evidence_lead_mismatch", ctx).status is RuleStatus.FAIL
 
     def test_hashed_lead_reference_resolves(self) -> None:
         from campaign_preflight.normalization import hash_ref
@@ -272,9 +272,7 @@ class TestClaims:
         ctx = make_context(
             leads=[lead], evidence=[evidence(lead_ref=hash_ref("ana@corp.example.com"))]
         )
-        assert (
-            run_rule("personalization.evidence_lead_mismatch", ctx).status is RuleStatus.PASS
-        )
+        assert run_rule("personalization.evidence_lead_mismatch", ctx).status is RuleStatus.PASS
 
     def test_evidence_capability_missing_yields_unknown(self) -> None:
         ctx = make_context(capabilities={Capability.EVIDENCE: CapabilityStatus.UNAVAILABLE_CONFIG})

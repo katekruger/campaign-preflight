@@ -135,14 +135,10 @@ class TestToolBehaviour:
         )
         assert payload["readiness"] == "READY"
 
-    def test_instantly_tool_refuses_without_a_key_in_the_environment(
-        self, monkeypatch
-    ) -> None:
+    def test_instantly_tool_refuses_without_a_key_in_the_environment(self, monkeypatch) -> None:
         monkeypatch.delenv("INSTANTLY_API_KEY", raising=False)
         server = build_server()
-        payload = _payload(
-            server.call_tool("preflight_instantly_campaign", {"campaign_id": "x"})
-        )
+        payload = _payload(server.call_tool("preflight_instantly_campaign", {"campaign_id": "x"}))
         assert payload["ok"] is False
         assert "INSTANTLY_API_KEY" in payload["error"]
         assert "cannot be passed as a tool argument" in payload["hint"]
@@ -185,9 +181,7 @@ class TestToolBehaviour:
 
     def test_config_validation_flags_external_model_use(self, tmp_path) -> None:
         path = tmp_path / "config.yaml"
-        path.write_text(
-            "version: 1\nevidence:\n  evaluator: openai_compatible\n", encoding="utf-8"
-        )
+        path.write_text("version: 1\nevidence:\n  evaluator: openai_compatible\n", encoding="utf-8")
         server = build_server()
         payload = _payload(
             server.call_tool("validate_preflight_config", {"config_path": str(path)})
