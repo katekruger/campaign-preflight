@@ -29,8 +29,17 @@ OUTPUT = REPO_ROOT / "dist" / "campaign-preflight.plugin"
 # Everything a user does not need in order to run the plugin. Excluding these
 # keeps the bundle to the plugin itself rather than the whole development repo.
 EXCLUDE_DIRS = {
-    ".git", ".github", ".venv", "dist", "tests", "node_modules",
-    "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".hypothesis",
+    ".git",
+    ".github",
+    ".venv",
+    "dist",
+    "tests",
+    "node_modules",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".hypothesis",
     "htmlcov",
 }
 EXCLUDE_NAMES = {".DS_Store", "uv.lock", ".python-version", "coverage.xml", ".coverage"}
