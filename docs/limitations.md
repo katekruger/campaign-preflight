@@ -127,7 +127,7 @@ determinable and is never claimed.
 Duplicates are matched on the normalized address (lowercased, Unicode-folded).
 Gmail-style dot and plus-tag folding is **not** applied, because it is
 provider-specific and would silently merge addresses you may consider distinct.
-`ana+q3@corp.com` and `ana@corp.com` are two contacts here.
+`ana+q3@corp.example.com` and `ana@corp.example.com` are two contacts here.
 
 ## Scale bounds
 
