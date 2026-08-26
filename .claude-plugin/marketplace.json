@@ -1,0 +1,36 @@
+{
+  "name": "campaign-preflight",
+  "owner": {
+    "name": "Kate Kruger",
+    "url": "https://github.com/katekruger"
+  },
+  "metadata": {
+    "description": "Read-only preflight checks for outbound email campaigns.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "campaign-preflight",
+      "source": "./",
+      "description": "Catches problems in an outbound email campaign before it sends — suppressed contacts, duplicates, unrendered merge fields, missing opt-out language, unhealthy senders, bad schedules, and prompt-injection text carried in from lead research. Read-only: it can inspect a campaign but never activate, edit, or send one.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Kate Kruger"
+      },
+      "homepage": "https://github.com/katekruger/campaignpreflightplugin",
+      "repository": "https://github.com/katekruger/campaignpreflightplugin",
+      "license": "MIT",
+      "keywords": [
+        "outbound",
+        "email",
+        "campaign",
+        "gtm",
+        "sales-ops",
+        "revenue-operations",
+        "quality-check"
+      ],
+      "category": "productivity",
+      "strict": false
+    }
+  ]
+}

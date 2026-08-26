@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/katekruger/campaign-preflight/schemas/report-1.0.0.json",
+  "$id": "https://github.com/katekruger/campaignpreflightplugin/schemas/report-1.0.0.json",
   "title": "Campaign Preflight report",
   "description": "The JSON envelope emitted by `campaign-preflight --format json`. Version 1.0.0.",
   "type": "object",

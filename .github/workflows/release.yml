@@ -79,7 +79,7 @@ jobs:
           fresh/bin/campaign-preflight version
           fresh/bin/campaign-preflight demo --quiet
 
-      - name: Build the Cowork plugin
+      - name: Package the plugin bundle
         run: uv run --frozen --all-extras python scripts/build_plugin.py
 
       - name: Checksums

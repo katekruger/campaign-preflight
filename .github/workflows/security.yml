@@ -46,7 +46,18 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v5
+
+      # Advisory, not blocking. The action needs GitHub's Dependency graph
+      # enabled on the repository, and errors out entirely when it is not --
+      # which is a repository setting, not something a pull request can fix.
+      # It is also the least load-bearing check here: the package has no runtime
+      # dependencies, and the `audit` job above already runs pip-audit over the
+      # full locked dev set on every push.
+      #
+      # To make this blocking, enable Dependency graph under
+      # Settings -> Code security, then drop continue-on-error.
       - uses: actions/dependency-review-action@v4
+        continue-on-error: true
         with:
           fail-on-severity: moderate
           comment-summary-in-pr: on-failure

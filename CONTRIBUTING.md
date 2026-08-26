@@ -6,7 +6,7 @@ adding one is usually a class, a docstring, and a handful of tests.
 ## Setup
 
 ```bash
-git clone https://github.com/katekruger/campaign-preflight
+git clone https://github.com/katekruger/campaignpreflightplugin
 cd campaign-preflight
 uv sync --all-extras
 uv run pytest
@@ -165,3 +165,10 @@ see [SECURITY.md](SECURITY.md).
 ## Code of conduct
 
 Be decent. Assume good faith. Discuss the code, not the person.
+
+The full terms are in [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Reports go
+through GitHub — [private vulnerability
+reporting](https://github.com/katekruger/campaignpreflightplugin/security/advisories/new)
+for anything sensitive, an
+[issue](https://github.com/katekruger/campaignpreflightplugin/issues) otherwise.
+There is deliberately no email address, here or in the code of conduct.

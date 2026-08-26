@@ -28,10 +28,9 @@ The **report JSON schema** is versioned separately from the package; see
 
 ### Added
 
-- **Cowork plugin** (`plugin/campaign-preflight`, built by
-  `scripts/build_plugin.py`) with three skills covering the ways a non-CLI user
-  actually arrives: an uploaded file, a pasted lead list, or a campaign
-  described in conversation.
+- **Claude plugin** with three skills covering the ways a non-CLI user actually
+  arrives: an uploaded file, a pasted lead list, or a campaign described in
+  conversation. Packaged by `scripts/build_plugin.py`.
 - MCP tools now carry `readOnlyHint` / `destructiveHint` annotations, and the
   server refuses to start if any tool is missing them.
 - `audit_allowlist()` makes the read-only transport's import-time guard a
@@ -115,5 +114,5 @@ First release.
 - Optional LLM claim evaluation is disabled by default; no data leaves the
   machine without explicit configuration.
 
-[Unreleased]: https://github.com/katekruger/campaign-preflight/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/katekruger/campaign-preflight/releases/tag/v0.1.0
+[Unreleased]: https://github.com/katekruger/campaignpreflightplugin/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/katekruger/campaignpreflightplugin/releases/tag/v0.1.0

@@ -1,0 +1,21 @@
+{
+  "name": "campaign-preflight",
+  "version": "0.1.0",
+  "description": "Catches problems in an outbound email campaign before it sends — suppressed contacts, duplicates, broken merge fields, missing opt-out language, unhealthy senders, bad schedules. Describe a campaign, paste a lead list, or point at files, and get a plain-language readiness verdict with evidence for every finding. Read-only: it can inspect a campaign but never activate, edit, or send one.",
+  "author": {
+    "name": "Kate Kruger"
+  },
+  "homepage": "https://github.com/katekruger/campaignpreflightplugin",
+  "repository": "https://github.com/katekruger/campaignpreflightplugin",
+  "license": "MIT",
+  "keywords": [
+    "outbound",
+    "email",
+    "campaign",
+    "gtm",
+    "sales-ops",
+    "revenue-operations",
+    "quality-check",
+    "cowork"
+  ]
+}

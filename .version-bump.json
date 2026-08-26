@@ -1,0 +1,46 @@
+{
+  "$comment": "Every file carrying the version string. scripts/bump-version.sh updates each and fails loudly if a path or pattern stops matching. Keep this list complete: the whole point is that a bump cannot half-apply.",
+  "version": "0.1.0",
+  "files": [
+    {
+      "path": "pyproject.toml",
+      "pattern": "^version = \"(.+)\"$",
+      "template": "version = \"{version}\"",
+      "note": "Python distribution version"
+    },
+    {
+      "path": ".claude-plugin/plugin.json",
+      "pattern": "^  \"version\": \"(.+)\",$",
+      "template": "  \"version\": \"{version}\",",
+      "note": "plugin manifest"
+    },
+    {
+      "path": "src/campaign_preflight/__init__.py",
+      "pattern": "^__version__ = \"(.+)\"$",
+      "template": "__version__ = \"{version}\"",
+      "note": "reported by `campaign-preflight version` and by the MCP server handshake"
+    },
+    {
+      "path": "skills/preflight-campaign/SKILL.md",
+      "pattern": "^  version: \"(.+)\"$",
+      "template": "  version: \"{version}\"",
+      "note": "metadata.version, a local convention (see CLAUDE.md)"
+    },
+    {
+      "path": "skills/preflight-demo/SKILL.md",
+      "pattern": "^  version: \"(.+)\"$",
+      "template": "  version: \"{version}\"",
+      "note": "metadata.version, a local convention (see CLAUDE.md)"
+    },
+    {
+      "path": "skills/preflight-rules/SKILL.md",
+      "pattern": "^  version: \"(.+)\"$",
+      "template": "  version: \"{version}\"",
+      "note": "metadata.version, a local convention (see CLAUDE.md)"
+    }
+  ],
+  "after_bump": [
+    "uv run campaign-preflight version",
+    "Add a CHANGELOG.md section for the new version before tagging."
+  ]
+}

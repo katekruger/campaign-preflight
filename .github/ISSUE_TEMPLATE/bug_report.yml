@@ -10,7 +10,7 @@ body:
 
         If a rule returned `PASS` when the underlying data was missing, please
         report that [privately as a security
-        issue](https://github.com/katekruger/campaign-preflight/security/advisories/new)
+        issue](https://github.com/katekruger/campaignpreflightplugin/security/advisories/new)
         instead — it is the failure mode this tool exists to prevent.
 
   - type: input

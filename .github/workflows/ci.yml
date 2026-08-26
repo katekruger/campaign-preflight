@@ -237,8 +237,79 @@ jobs:
       - name: The rule catalogue is up to date
         run: uv run python scripts/generate_rules_doc.py --check
 
-      - name: The plugin is in sync with src/
-        run: uv run python scripts/build_plugin.py --check
+  plugin:
+    name: Plugin manifest and version agreement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install the Claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      # `plugin validate` reads manifests off disk and needs no credentials;
+      # verified by running it with an empty HOME and no API key.
+      - name: Validate the marketplace manifest
+        run: claude plugin validate . --strict
+
+      # `validate .` resolves marketplace.json, so the plugin manifest needs
+      # its own run. --strict is not used directly there: CLAUDE.md at the repo
+      # root raises a warning, because a plugin cannot ship context that way.
+      # The file is here for contributors who open the repo in Claude Code, not
+      # for the plugin, so the warning is expected. Everything else is still
+      # treated as fatal -- a new warning fails the build.
+      - name: Validate the plugin manifest
+        run: |
+          set +e
+          output=$(claude plugin validate .claude-plugin/plugin.json 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if [ $status -ne 0 ]; then
+            echo "::error::plugin manifest validation failed"
+            exit 1
+          fi
+          unexpected=$(echo "$output" | grep '❯' | grep -v 'CLAUDE.md at the plugin root' || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::unexpected validation warning"
+            echo "$unexpected"
+            exit 1
+          fi
+          echo "plugin manifest valid; only the known CLAUDE.md warning present"
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Every version field agrees
+        # The version lives in six files. A half-applied bump leaves the
+        # manifest and the package disagreeing with nothing to say so.
+        run: ./scripts/bump-version.sh --check
+
+      - name: Shell scripts parse
+        run: bash -n scripts/*.sh
+
+      - name: Every JSON file parses
+        run: |
+          python - <<'PY'
+          import json, pathlib, sys
+          SKIP = {".git", ".venv", "node_modules", "__pycache__", "dist"}
+          bad = []
+          for path in sorted(pathlib.Path(".").rglob("*.json")):
+              if any(part in SKIP for part in path.parts):
+                  continue
+              try:
+                  json.loads(path.read_text(encoding="utf-8"))
+              except ValueError as exc:
+                  bad.append(f"{path}: {exc}")
+          for line in bad:
+              print(f"::error::{line}")
+          print(f"checked {len(list(pathlib.Path('.').rglob('*.json')))} JSON files")
+          sys.exit(1 if bad else 0)
+          PY
 
   build:
     name: Package build
@@ -268,7 +339,7 @@ jobs:
             '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
             | fresh/bin/campaign-preflight-mcp | grep -q preflight_demo
 
-      - name: Build the Cowork plugin
+      - name: Package the plugin bundle
         run: uv run python scripts/build_plugin.py
 
       - uses: actions/upload-artifact@v4
