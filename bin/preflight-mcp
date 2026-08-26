@@ -1,13 +1,13 @@
 #!/bin/sh
 # Campaign Preflight MCP server launcher for the Cowork plugin.
 #
-# Finds a usable Python 3.9+ and runs the bundled engine from it. The engine has
-# no third-party dependencies, so any interpreter that meets the version floor
-# works -- no virtualenv, no pip install, no network.
+# Finds a usable Python 3.9+ and runs the bundled package from src/. The package
+# has no third-party dependencies, so any interpreter that meets the version
+# floor works -- no virtualenv, no pip install, no network.
 set -eu
 
 PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-ENGINE_DIR="$PLUGIN_DIR/engine"
+PACKAGE_DIR="$PLUGIN_DIR/src"
 
 find_python() {
     for candidate in python3 /usr/bin/python3 /usr/local/bin/python3 /opt/homebrew/bin/python3 python; do
@@ -27,4 +27,4 @@ PYTHON="$(find_python)" || {
     exit 6
 }
 
-PYTHONPATH="$ENGINE_DIR${PYTHONPATH:+:$PYTHONPATH}" exec "$PYTHON" -X utf8 -m campaign_preflight.mcp.server "$@"
+PYTHONPATH="$PACKAGE_DIR${PYTHONPATH:+:$PYTHONPATH}" exec "$PYTHON" -X utf8 -m campaign_preflight.mcp.server "$@"

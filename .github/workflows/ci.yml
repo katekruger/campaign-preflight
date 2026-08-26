@@ -256,7 +256,7 @@ jobs:
       # `plugin validate` reads the manifest off disk and needs no credentials;
       # verified by running it with an empty HOME and no API key.
       - name: Validate the plugin manifest
-        run: claude plugin validate plugin/campaign-preflight --strict
+        run: claude plugin validate . --strict
 
       - uses: astral-sh/setup-uv@v7
         with:
