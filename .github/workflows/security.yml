@@ -63,13 +63,17 @@ jobs:
 
       - name: Audit the development toolchain
         # The shipped package has no runtime dependencies, so this covers the
-        # dev group only -- which is still worth watching, since it runs in CI.
+        # dev group only -- still worth watching, since it runs in CI.
+        #
+        # Exporting the locked set rather than auditing the environment keeps
+        # pip-audit from trying to look campaign-preflight itself up on PyPI,
+        # where it does not exist. That is not a vulnerability, but --strict
+        # treats an unresolvable package as a failure.
         run: |
-          uv sync --all-extras --frozen
-          uv run --with pip-audit pip-audit --strict --progress-spinner off || {
-            echo "::warning::pip-audit reported findings in the development toolchain"
-            exit 1
-          }
+          uv export --all-extras --frozen --no-emit-project \
+            --format requirements-txt --output-file audit-requirements.txt
+          echo "auditing $(grep -c '==' audit-requirements.txt) locked packages"
+          uvx pip-audit --strict --progress-spinner off -r audit-requirements.txt
 
   no-runtime-dependencies:
     name: No runtime dependencies crept in
