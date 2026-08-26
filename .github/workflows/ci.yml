@@ -240,6 +240,55 @@ jobs:
       - name: The plugin is in sync with src/
         run: uv run python scripts/build_plugin.py --check
 
+  plugin:
+    name: Plugin manifest and version agreement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install the Claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      # `plugin validate` reads the manifest off disk and needs no credentials;
+      # verified by running it with an empty HOME and no API key.
+      - name: Validate the plugin manifest
+        run: claude plugin validate plugin/campaign-preflight --strict
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Every version field agrees
+        # The version lives in six files. A half-applied bump leaves the
+        # manifest and the package disagreeing with nothing to say so.
+        run: ./scripts/bump-version.sh --check
+
+      - name: Shell scripts parse
+        run: bash -n scripts/*.sh
+
+      - name: Every JSON file parses
+        run: |
+          python - <<'PY'
+          import json, pathlib, sys
+          SKIP = {".git", ".venv", "node_modules", "__pycache__", "dist"}
+          bad = []
+          for path in sorted(pathlib.Path(".").rglob("*.json")):
+              if any(part in SKIP for part in path.parts):
+                  continue
+              try:
+                  json.loads(path.read_text(encoding="utf-8"))
+              except ValueError as exc:
+                  bad.append(f"{path}: {exc}")
+          for line in bad:
+              print(f"::error::{line}")
+          print(f"checked {len(list(pathlib.Path('.').rglob('*.json')))} JSON files")
+          sys.exit(1 if bad else 0)
+          PY
+
   build:
     name: Package build
     runs-on: ubuntu-latest
