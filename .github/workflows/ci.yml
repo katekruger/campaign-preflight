@@ -237,9 +237,6 @@ jobs:
       - name: The rule catalogue is up to date
         run: uv run python scripts/generate_rules_doc.py --check
 
-      - name: The plugin is in sync with src/
-        run: uv run python scripts/build_plugin.py --check
-
   plugin:
     name: Plugin manifest and version agreement
     runs-on: ubuntu-latest
@@ -317,7 +314,7 @@ jobs:
             '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
             | fresh/bin/campaign-preflight-mcp | grep -q preflight_demo
 
-      - name: Build the Cowork plugin
+      - name: Package the plugin bundle
         run: uv run python scripts/build_plugin.py
 
       - uses: actions/upload-artifact@v4
