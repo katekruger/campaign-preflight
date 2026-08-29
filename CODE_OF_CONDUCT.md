@@ -63,10 +63,10 @@ reported to the maintainers through GitHub:
 
 * **For anything sensitive, or involving a specific person:** use [private
   vulnerability
-  reporting](https://github.com/katekruger/campaignpreflightplugin/security/advisories/new).
+  reporting](https://github.com/katekruger/campaign-preflight/security/advisories/new).
   It is the repository's private channel and is not limited to security issues.
 * **For everything else:** open an
-  [issue](https://github.com/katekruger/campaignpreflightplugin/issues).
+  [issue](https://github.com/katekruger/campaign-preflight/issues).
 
 Deliberately, there is no email address here. Reports go through GitHub so they
 are logged, attributable, and reviewable, and so that no personal address is

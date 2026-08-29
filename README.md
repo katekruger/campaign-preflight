@@ -4,8 +4,8 @@
 configuration, contact-data, personalization, suppression, schedule, and sender
 problems before launch.**
 
-[![CI](https://github.com/katekruger/campaignpreflightplugin/actions/workflows/ci.yml/badge.svg)](https://github.com/katekruger/campaignpreflightplugin/actions/workflows/ci.yml)
-[![Security](https://github.com/katekruger/campaignpreflightplugin/actions/workflows/security.yml/badge.svg)](https://github.com/katekruger/campaignpreflightplugin/actions/workflows/security.yml)
+[![CI](https://github.com/katekruger/campaign-preflight/actions/workflows/ci.yml/badge.svg)](https://github.com/katekruger/campaign-preflight/actions/workflows/ci.yml)
+[![Security](https://github.com/katekruger/campaign-preflight/actions/workflows/security.yml/badge.svg)](https://github.com/katekruger/campaign-preflight/actions/workflows/security.yml)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-brightgreen.svg)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -89,7 +89,7 @@ whatever `python3` is already there.
 ### As a Claude plugin (marketplace)
 
 ```
-/plugin marketplace add katekruger/campaignpreflightplugin
+/plugin marketplace add katekruger/campaign-preflight
 /plugin install campaign-preflight
 ```
 
@@ -99,11 +99,11 @@ the root alongside the plugin manifest.
 ### As a Claude plugin (local checkout)
 
 ```bash
-git clone https://github.com/katekruger/campaignpreflightplugin
+git clone https://github.com/katekruger/campaign-preflight
 ```
 
 ```
-/plugin marketplace add ./campaignpreflightplugin
+/plugin marketplace add ./campaign-preflight
 /plugin install campaign-preflight
 ```
 
@@ -478,8 +478,8 @@ output size are all bounded.
 ## Development
 
 ```bash
-git clone https://github.com/katekruger/campaignpreflightplugin
-cd campaignpreflightplugin
+git clone https://github.com/katekruger/campaign-preflight
+cd campaign-preflight
 uv sync --all-extras
 uv run pytest
 ```

@@ -5,7 +5,7 @@
 **Do not open a public issue for a security problem.**
 
 Use GitHub's private vulnerability reporting:
-<https://github.com/katekruger/campaignpreflightplugin/security/advisories/new>
+<https://github.com/katekruger/campaign-preflight/security/advisories/new>
 
 Please include:
 

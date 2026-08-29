@@ -114,5 +114,5 @@ First release.
 - Optional LLM claim evaluation is disabled by default; no data leaves the
   machine without explicit configuration.
 
-[Unreleased]: https://github.com/katekruger/campaignpreflightplugin/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/katekruger/campaignpreflightplugin/releases/tag/v0.1.0
+[Unreleased]: https://github.com/katekruger/campaign-preflight/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/katekruger/campaign-preflight/releases/tag/v0.1.0

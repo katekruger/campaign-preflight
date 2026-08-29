@@ -9,11 +9,8 @@ mistakes until you know why they are there.
 `campaign-preflight`, a read-only linter for outbound email campaigns. It ships
 three ways: a Python CLI, an MCP server, and a Claude plugin.
 
-**Naming.** The repository is `campaignpreflightplugin`. The plugin is
-`campaign-preflight`. Use the plugin name in prose, headings, and every install
-command. The repository name belongs only inside URLs. They differ because the
-repo was renamed after the plugin was published; do not "fix" one to match the
-other.
+**Naming.** The repository and the plugin share one name: `campaign-preflight`.
+Use it verbatim in prose, headings, install commands, and URLs.
 
 ## Layout
 
