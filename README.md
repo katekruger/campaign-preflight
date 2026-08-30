@@ -527,6 +527,12 @@ class, a docstring, and a handful of tests. See
 Report vulnerabilities privately: [SECURITY.md](SECURITY.md). A rule that
 returned `PASS` when the data was missing counts as a security issue.
 
+## See also
+
+[segment-mcp](https://github.com/katekruger/segment-mcp) — a read-first MCP
+server for Twilio Segment. Same "checked and it's fine ≠ we couldn't check"
+philosophy: `insufficient_data` is its own state, never coerced to a pass.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
