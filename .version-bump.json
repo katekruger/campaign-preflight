@@ -24,19 +24,19 @@
       "path": "skills/preflight-campaign/SKILL.md",
       "pattern": "^  version: \"(.+)\"$",
       "template": "  version: \"{version}\"",
-      "note": "metadata.version, a local convention (see CLAUDE.md)"
+      "note": "metadata.version, a local convention (see AGENTS.md)"
     },
     {
       "path": "skills/preflight-demo/SKILL.md",
       "pattern": "^  version: \"(.+)\"$",
       "template": "  version: \"{version}\"",
-      "note": "metadata.version, a local convention (see CLAUDE.md)"
+      "note": "metadata.version, a local convention (see AGENTS.md)"
     },
     {
       "path": "skills/preflight-rules/SKILL.md",
       "pattern": "^  version: \"(.+)\"$",
       "template": "  version: \"{version}\"",
-      "note": "metadata.version, a local convention (see CLAUDE.md)"
+      "note": "metadata.version, a local convention (see AGENTS.md)"
     }
   ],
   "after_bump": [

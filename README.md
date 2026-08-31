@@ -500,7 +500,7 @@ for the optional Instantly provider and `PyYAML` to differentially test the
 bundled YAML parser against.
 
 Conventions that look like mistakes until you know why are written down in
-[CLAUDE.md](CLAUDE.md).
+[AGENTS.md](AGENTS.md).
 
 ---
 
