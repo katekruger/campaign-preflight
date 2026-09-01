@@ -115,11 +115,12 @@ jobs:
             --title "$TAG" \
             --notes "See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/$TAG/CHANGELOG.md) for what changed.
 
-          **Install**
+          **Install** (not yet on PyPI — from a checkout)
 
           \`\`\`bash
-          pipx install campaign-preflight
-          campaign-preflight demo
+          git clone https://github.com/${{ github.repository }}
+          cd campaign-preflight
+          PYTHONPATH=src python3 -m campaign_preflight.cli demo
           \`\`\`
 
           No API key, no network, no runtime dependencies. Python 3.9+.

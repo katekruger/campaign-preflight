@@ -109,15 +109,13 @@ git clone https://github.com/katekruger/campaign-preflight
 
 ### As a CLI
 
-```bash
-pipx install campaign-preflight
-```
-
-Or straight from a checkout, with nothing installed at all:
+Straight from a checkout, with nothing installed at all:
 
 ```bash
 PYTHONPATH=src python3 -m campaign_preflight.cli demo
 ```
+
+Not yet published to PyPI — this is the only CLI install path today.
 
 ### As an MCP server
 
