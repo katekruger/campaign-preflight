@@ -198,7 +198,7 @@ line.
 ```bash
 uv sync --all-extras            # install (dev toolchain only; the package needs nothing)
 
-uv run pytest                   # full suite -- 1,851 tests, ~6s
+uv run pytest                   # full suite, ~6s
 uv run ruff format --check .    # format check
 uv run ruff check .             # lint
 uv run mypy                     # typecheck, strict
@@ -222,7 +222,7 @@ a rule.
 
 ## Testing conventions
 
-1,851 tests, three directories, each with a distinct job:
+The full suite, three directories, each with a distinct job:
 
 | Directory | Contains |
 |---|---|
