@@ -1,10 +1,16 @@
 # Reachability and divergence report
 
-Report only. Nothing described here has been fixed, refactored, or added to
-beyond this file. Verified at HEAD (`a8aad91` / same tree as `4dc2ab2`) on
-1 September 2026, against `README.md`, `CONTRIBUTING.md`, and a real
-subprocess drive of every entry point this repo ships. `AGENTS.md` and
-`tests/unit/test_mcp_safety.py` were not touched to produce this.
+Originally report only. Verified at HEAD (`a8aad91` / same tree as
+`4dc2ab2`) on 1 September 2026, against `README.md`, `CONTRIBUTING.md`, and a
+real subprocess drive of every entry point this repo ships. `AGENTS.md` and
+`tests/unit/test_mcp_safety.py` were not touched to produce this report.
+
+**Status update, same day:** the four items this report found (§1.1, §1.2,
+§1.3, and the incidental §1.5) have since been closed, one commit each. The
+findings below are preserved exactly as originally written — a report that
+erases what it found is worth less than one that shows the trail — with a
+**Resolved** line added under each closed item naming the commit that
+closed it.
 
 Every claim below was checked from outside the module it describes — its
 test suite, its CI config, or a fresh subprocess — not by re-reading the
@@ -45,6 +51,9 @@ named for it is wrong.
 **Fix (not applied):** replace "frozen Pydantic model" with "frozen
 dataclass" in that one sentence.
 
+**Resolved:** [`86c9c62`](https://github.com/katekruger/campaign-preflight/commit/86c9c62)
+— `README.md` now says "frozen dataclass."
+
 ### 1.2 README's PyPI install instruction does not currently work
 
 > "### As a CLI
@@ -73,6 +82,13 @@ says publication was deliberately never turned on.
 **Fix (not applied):** remove the `pipx install` block until the `pypi`
 environment exists, or mark it "not yet available."
 
+**Resolved:** [`d9178f3`](https://github.com/katekruger/campaign-preflight/commit/d9178f3)
+— removed the `pipx install` block from both `README.md` and the GitHub
+release notes `release.yml` itself generates (which had the identical
+problem, discovered while closing this out); the from-checkout path, which
+works today, stays. Publishing to PyPI is deferred to its own session, per
+the report's own recommendation.
+
 ### 1.3 An absolute claim with no test that would fail if it stopped being true
 
 > "It does not verify mailboxes. Address checks are syntax only. No DNS, no
@@ -93,6 +109,15 @@ The same shape would work here:
 `assert not re.search(r"\bsocket\.|dns\.|smtplib", inspect.getsource(contacts_module))`
 against `src/campaign_preflight/rules/contacts.py`. Crude, but it would fail
 loudly the day someone "improves" address checking with a real lookup.
+
+**Resolved:** [`818c946`](https://github.com/katekruger/campaign-preflight/commit/818c946)
+— added `tests/unit/test_rules_no_network.py`, a `not in`-shaped source
+guard swept across the whole `rules/` package (not just `contacts.py`, per
+the report's own suggestion that the claim is about the tool, not one
+module). Proved it bites before committing: temporarily added a
+`socket.gethostbyname()` call to `EmailSyntax.evaluate()`, confirmed the new
+test failed, then reverted the mutation — `contacts.py` carries no diff in
+that commit, only the new test file.
 
 ### 1.4 CONTRIBUTING.md and README.md's tested claims check out
 
@@ -122,6 +147,17 @@ readOnlyHint"`), and `uv run pytest --collect-only -q` currently sums to
 `README.md`/`CONTRIBUTING.md`, so it is out of scope for §1's mandate — it
 is recorded here rather than silently dropped, and rather than fixed.
 
+**Resolved (partially — by design):** [`5469630`](https://github.com/katekruger/campaign-preflight/commit/5469630)
+— the stale test count is gone from both mentions, and deleted rather than
+re-pinned to a fresh number: "the full suite" is as informative as a count
+and doesn't rot on the next commit, which is the same number going stale a
+second time. The other half of this finding — the "known coverage gap" text
+describing `_assert_read_only()`'s failure branches as untested, which
+`tests/unit/test_mcp_safety.py` already contradicts — was not in this
+round's four named items and `tests/unit/test_mcp_safety.py` was not to be
+touched, so it remains open and unresolved. Recorded here, not silently
+folded into "resolved."
+
 ### Absolute-claims sweep
 
 `grep -noiE '\b(never|always|cannot|can.t|guarantee[ds]?)\b' README.md
@@ -131,7 +167,7 @@ CONTRIBUTING.md` — every hit, and what backs it:
 |---|---|---|
 | 1 | README:19,26–27,32 "never writes... cannot activate anything" | `test_instantly_transport.py` (full method×path matrix), `test_mcp_safety.py` |
 | 2 | README:31 "does not guarantee deliverability... never invents a score" | `rules/senders.py` `UNHEALTHY_WARMUP`/`UNKNOWN` design; no score-generating code path exists to test against |
-| 3 | README:47 "does not verify mailboxes... cannot [do DNS/SMTP]" | **unguarded — see §1.3** |
+| 3 | README:47 "does not verify mailboxes... cannot [do DNS/SMTP]" | **resolved — `tests/unit/test_rules_no_network.py`, see §1.3** |
 | 4 | README:53 "does not replace your provider's safeguards" | advisory prose, not a runtime claim — no test expected |
 | 5 | README:187 "cannot tell those apart is worse than no checker" | rhetorical, not a claim about this codebase |
 | 6 | README:230 "none needs an account" | `test_demo_offline.py` (`no_network`, `no_credentials` fixtures) |
@@ -314,7 +350,7 @@ sentence should stop being true. Until then, there is nothing to test.
   already known and out of this section's scope in `AGENTS.md`. Nineteen
   absolute claims swept across `README.md` and `CONTRIBUTING.md`; eighteen
   have a named test or are not runtime claims, one (§1.3, mailbox
-  verification) is unguarded.
+  verification) was unguarded.
 - §2: zero unreached modules, confirmed by real subprocess evidence across
   both shipped entry points, with per-surface attribution showing the CLI
   and MCP entry points are each necessary (four MCP-exclusive modules, one
@@ -322,5 +358,22 @@ sentence should stop being true. Until then, there is nothing to test.
 - §3: this repo persists nothing durable across process invocations. No
   process-restart test exists, and none is currently needed.
 
-Nothing in this report was fixed. `AGENTS.md` and
+Nothing in this report was fixed to produce it. `AGENTS.md` and
 `tests/unit/test_mcp_safety.py` were not modified to produce it.
+
+## Resolution log
+
+All four items this report found have since been closed, one commit each,
+by a follow-up session the same day. Findings are preserved above exactly as
+originally written; only a **Resolved** line was added under each.
+
+| Item | Finding | Commit | What changed |
+|---|---|---|---|
+| §1.1 | README names Pydantic, code uses frozen dataclasses | [`86c9c62`](https://github.com/katekruger/campaign-preflight/commit/86c9c62) | `README.md`: "frozen Pydantic model" → "frozen dataclass" |
+| §1.2 | `pipx install` doesn't work, PyPI publish is gated off | [`d9178f3`](https://github.com/katekruger/campaign-preflight/commit/d9178f3) | Removed the `pipx` block from `README.md` **and** `release.yml`'s generated release notes (the same defect, found in a second place while closing this out); the working from-checkout path stays |
+| §1.3 | "No DNS, no SMTP" claim was unguarded | [`818c946`](https://github.com/katekruger/campaign-preflight/commit/818c946) | Added `tests/unit/test_rules_no_network.py`, a source-level `not in`-shaped guard across all of `rules/`, proved to bite by mutation before the mutation was reverted |
+| §1.5 (incidental) | `AGENTS.md`'s "1,851 tests" was stale | [`5469630`](https://github.com/katekruger/campaign-preflight/commit/5469630) | Both mentions changed to "the full suite" — deleted rather than re-pinned, so it can't go stale a third time. The other half of §1.5 (the "known coverage gap" text) was **not** in this round's four named items and remains open |
+
+Everything else in this report — the zero-unreached-module result (§2), the
+process-persistence finding (§3), and the fifteen absolute claims that
+already had a test — required no action and is unchanged.
