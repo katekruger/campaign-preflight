@@ -11,9 +11,13 @@ import json
 
 import pytest
 
+from campaign_preflight.errors import PreflightError
+from campaign_preflight.mcp.protocol import MCPServer
 from campaign_preflight.mcp.server import (
     MUTATING_VERBS,
+    READ_ONLY_ANNOTATIONS,
     READ_ONLY_PREFIX,
+    _assert_read_only,
     build_server,
     list_tool_specs,
     tool_input_schema,
@@ -92,6 +96,91 @@ def test_no_module_level_function_performs_a_write() -> None:
     source = inspect.getsource(module)
     for verb in ("httpx.post", "httpx.patch", "httpx.delete", "requests.post"):
         assert verb not in source.lower()
+
+
+def _server_with_one_tool(name: str, description: str, annotations: dict) -> MCPServer:
+    """A minimal server carrying exactly one tool, for exercising _assert_read_only()."""
+    server = MCPServer(name="test", version="0.0.0")
+    server.add_tool(
+        name=name,
+        description=description,
+        input_schema={"type": "object", "properties": {}},
+        handler=lambda: None,
+        annotations=annotations,
+    )
+    return server
+
+
+class TestAssertReadOnly:
+    """_assert_read_only() is the fail-closed startup guard named in AGENTS.md's
+    Non-negotiables section: its whole job is to stop a fork from shipping a
+    write-shaped tool. The tests above only ever see the correctly-built real
+    tool list, so they never exercise the guard's own failure branches -- these
+    do, by constructing a server that violates exactly one rule at a time.
+    """
+
+    @pytest.mark.parametrize("verb", sorted(MUTATING_VERBS))
+    def test_refuses_a_tool_name_containing_each_mutating_verb(self, verb: str) -> None:
+        server = _server_with_one_tool(
+            f"preflight_{verb}_thing",
+            "READ-ONLY. Otherwise compliant.",
+            dict(READ_ONLY_ANNOTATIONS),
+        )
+        with pytest.raises(PreflightError, match="mutating name"):
+            _assert_read_only(server)
+
+    @pytest.mark.parametrize("verb", sorted(MUTATING_VERBS))
+    def test_refuses_regardless_of_case(self, verb: str) -> None:
+        server = _server_with_one_tool(
+            f"PREFLIGHT_{verb.upper()}_THING",
+            "READ-ONLY. Otherwise compliant.",
+            dict(READ_ONLY_ANNOTATIONS),
+        )
+        with pytest.raises(PreflightError, match="mutating name"):
+            _assert_read_only(server)
+
+    def test_does_not_flag_a_verb_as_a_substring_of_an_innocent_word(self) -> None:
+        """The matcher splits a tool name on "_" and checks whole words against
+        MUTATING_VERBS, not substrings. "preflight_senders" must not be refused
+        just because "senders" contains "send" -- a substring match would be
+        the over-broad failure direction, and that direction blocks legitimate
+        work rather than catching a real defect.
+        """
+        server = _server_with_one_tool(
+            "preflight_senders", "READ-ONLY. Otherwise compliant.", dict(READ_ONLY_ANNOTATIONS)
+        )
+        _assert_read_only(server)  # must not raise
+
+    def test_refuses_a_description_not_opening_with_read_only(self) -> None:
+        server = _server_with_one_tool(
+            "preflight_widget", "Compliant in every other way.", dict(READ_ONLY_ANNOTATIONS)
+        )
+        with pytest.raises(PreflightError, match="does not declare itself READ-ONLY"):
+            _assert_read_only(server)
+
+    def test_refuses_a_tool_missing_the_read_only_hint(self) -> None:
+        annotations = dict(READ_ONLY_ANNOTATIONS)
+        del annotations["readOnlyHint"]
+        server = _server_with_one_tool(
+            "preflight_widget", "READ-ONLY. Otherwise compliant.", annotations
+        )
+        with pytest.raises(PreflightError, match="not annotated readOnlyHint"):
+            _assert_read_only(server)
+
+    def test_refuses_a_tool_whose_read_only_hint_is_false(self) -> None:
+        annotations = dict(READ_ONLY_ANNOTATIONS)
+        annotations["readOnlyHint"] = False
+        server = _server_with_one_tool(
+            "preflight_widget", "READ-ONLY. Otherwise compliant.", annotations
+        )
+        with pytest.raises(PreflightError, match="not annotated readOnlyHint"):
+            _assert_read_only(server)
+
+    def test_a_fully_compliant_server_starts(self) -> None:
+        server = _server_with_one_tool(
+            "preflight_widget", "READ-ONLY. Otherwise compliant.", dict(READ_ONLY_ANNOTATIONS)
+        )
+        _assert_read_only(server)  # must not raise
 
 
 class TestToolBehaviour:
