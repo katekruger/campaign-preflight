@@ -10,6 +10,15 @@ because Claude Code auto-loads `CLAUDE.md` as project context and does not
 the plugin-manifest warning under CI workflows below; a plugin install never
 sees it. Edit this file, never `CLAUDE.md` directly.
 
+**Self-descriptions go stale.** This file has restated a checkable fact
+about the codebase in prose twice now — a test count and a test-coverage
+claim — and been wrong both times within weeks, caught only by an external
+audit rather than anything in the repo. When adding a sentence here that
+describes what the test suite or the code currently does, point at the file
+that holds the truth (`see tests/unit/test_mcp_safety.py`) rather than
+restating a count, a percentage, or a line number that the next commit can
+invalidate without touching this file.
+
 ## What this is
 
 `campaign-preflight`, a read-only linter for outbound email campaigns. It ships
@@ -43,9 +52,9 @@ Concretely, no change may:
   start with the literal `READ-ONLY.` prefix, or if it isn't annotated
   `readOnlyHint: True`. This is a fail-closed guard specifically so a mistake
   in a fork can't ship a write tool to somebody's Cowork or Claude Desktop.
-  **Its three failure branches have no test coverage today** — see Testing
-  conventions below; treat that as a known gap to close, not evidence the
-  branches are unimportant.
+  All three failure branches are covered by `tests/unit/test_mcp_safety.py`,
+  parametrized over every verb in `MUTATING_VERBS`, including the
+  over-breadth direction — see Testing conventions below.
 - **Let missing or unreadable data produce a `PASS`.** Every provider read
   returns data *plus the reason it does or does not exist* (`ProviderResult`
   in `providers/base.py`: `ok`, `failed`, `forbidden`, `unsupported`,
@@ -242,16 +251,15 @@ them: `test_instantly_transport.py` (the write barrier), `test_mcp_safety.py`
 `.github/workflows/security.yml`'s `read-only-boundary` job — a change that
 passes CI's `test` job but not that job is still broken.
 
-**A known coverage gap, not yet closed.** `test_mcp_safety.py` verifies the
-properties of the *correctly-built* tool list (no mutating verb present,
-every description starts with `READ-ONLY.`, etc.) but never constructs a
-deliberately malformed tool and asserts `_assert_read_only()` actually raises
-on it. The three `raise PreflightError(...)` branches inside that function
-(`mcp/server.py`, currently around lines 501, 507, 512) have zero coverage
-from the test suite or from any documented CLI/MCP usage — verified directly
-against `coverage.xml`, not inferred. This is the fail-closed guard named in
-Non-negotiables above; its own failure paths are the part most worth adding
-a test for next.
+**The fail-closed guard's failure paths are covered, not just its happy
+path.** `test_mcp_safety.py` verifies both the properties of the
+*correctly-built* tool list (no mutating verb present, every description
+starts with `READ-ONLY.`, etc.) and, separately, constructs a deliberately
+malformed tool for each of `_assert_read_only()`'s three `raise
+PreflightError(...)` branches and asserts it actually raises — plus the
+over-breadth direction (a verb-shaped substring inside an innocent tool name,
+like `send` in `preflight_senders`, must not be flagged). This is the
+fail-closed guard named in Non-negotiables above.
 
 ## CI workflows
 
