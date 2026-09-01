@@ -5,12 +5,12 @@ Originally report only. Verified at HEAD (`a8aad91` / same tree as
 real subprocess drive of every entry point this repo ships. `AGENTS.md` and
 `tests/unit/test_mcp_safety.py` were not touched to produce this report.
 
-**Status update, same day:** the four items this report found (§1.1, §1.2,
-§1.3, and the incidental §1.5) have since been closed, one commit each. The
-findings below are preserved exactly as originally written — a report that
-erases what it found is worth less than one that shows the trail — with a
-**Resolved** line added under each closed item naming the commit that
-closed it.
+**Status update:** every item this report found (§1.1, §1.2, §1.3, and both
+halves of the incidental §1.5) has since been closed, across two follow-up
+sessions. The findings below are preserved exactly as originally written — a
+report that erases what it found is worth less than one that shows the
+trail — with a **Resolved** line added under each closed item naming the
+commit that closed it. See the Resolution log at the end for the full list.
 
 Every claim below was checked from outside the module it describes — its
 test suite, its CI config, or a fresh subprocess — not by re-reading the
@@ -130,8 +130,8 @@ tests/unit/test_redaction.py tests/unit/test_demo_offline.py` — all five
 exist, and `test_missing_required_data_never_passes` is a real function in
 `test_registry.py`, not a stale reference). No divergence found there.
 
-### 1.5 Incidental: `AGENTS.md`'s own "known gap" text is stale (out of this
-report's scope, not touched)
+### 1.5 Incidental: `AGENTS.md`'s own "known gap" text is stale (originally
+out of this report's scope — see Resolved below)
 
 `AGENTS.md` was excluded from this round's divergence check by the ground
 rules, and it was not edited to produce this report. Noted here only because
@@ -147,16 +147,30 @@ readOnlyHint"`), and `uv run pytest --collect-only -q` currently sums to
 `README.md`/`CONTRIBUTING.md`, so it is out of scope for §1's mandate — it
 is recorded here rather than silently dropped, and rather than fixed.
 
-**Resolved (partially — by design):** [`5469630`](https://github.com/katekruger/campaign-preflight/commit/5469630)
-— the stale test count is gone from both mentions, and deleted rather than
-re-pinned to a fresh number: "the full suite" is as informative as a count
-and doesn't rot on the next commit, which is the same number going stale a
-second time. The other half of this finding — the "known coverage gap" text
-describing `_assert_read_only()`'s failure branches as untested, which
-`tests/unit/test_mcp_safety.py` already contradicts — was not in this
-round's four named items and `tests/unit/test_mcp_safety.py` was not to be
-touched, so it remains open and unresolved. Recorded here, not silently
-folded into "resolved."
+**Resolved, in two parts:**
+
+- [`5469630`](https://github.com/katekruger/campaign-preflight/commit/5469630)
+  — the stale test count is gone from both mentions, deleted rather than
+  re-pinned to a fresh number: "the full suite" is as informative as a count
+  and doesn't rot on the next commit, which is the same number going stale a
+  second time. At the time this closed, the other half of this finding — the
+  "known coverage gap" text describing `_assert_read_only()`'s failure
+  branches as untested, which `tests/unit/test_mcp_safety.py` already
+  contradicted — was deliberately left open: it was not in that round's four
+  named items, and `tests/unit/test_mcp_safety.py` was not to be touched, so
+  it was recorded here rather than silently folded into "resolved."
+- [`90b51f7`](https://github.com/katekruger/campaign-preflight/commit/90b51f7)
+  — the remaining half. Both the Non-negotiables sentence and the matching
+  "known coverage gap" paragraph in Testing conventions now say the three
+  `raise PreflightError(...)` branches are covered and name
+  `tests/unit/test_mcp_safety.py`, instead of restating a count or line
+  numbers. `AGENTS.md` also gained a one-sentence convention at the top —
+  point at the file that holds the truth rather than restate a checkable
+  fact in prose — since this was the second time the file had gone stale
+  about itself in as many rounds. `tests/unit/test_mcp_safety.py` itself was
+  not touched. A sweep for other stale self-descriptions in `AGENTS.md`
+  found none: the "76 rules" count and the CI coverage-floor percentages
+  both still match `all_rules()` and `ci.yml` exactly.
 
 ### Absolute-claims sweep
 
@@ -363,16 +377,17 @@ Nothing in this report was fixed to produce it. `AGENTS.md` and
 
 ## Resolution log
 
-All four items this report found have since been closed, one commit each,
-by a follow-up session the same day. Findings are preserved above exactly as
-originally written; only a **Resolved** line was added under each.
+All items this report found have since been closed, across two follow-up
+sessions. Findings are preserved above exactly as originally written; only a
+**Resolved** line was added under each.
 
 | Item | Finding | Commit | What changed |
 |---|---|---|---|
 | §1.1 | README names Pydantic, code uses frozen dataclasses | [`86c9c62`](https://github.com/katekruger/campaign-preflight/commit/86c9c62) | `README.md`: "frozen Pydantic model" → "frozen dataclass" |
 | §1.2 | `pipx install` doesn't work, PyPI publish is gated off | [`d9178f3`](https://github.com/katekruger/campaign-preflight/commit/d9178f3) | Removed the `pipx` block from `README.md` **and** `release.yml`'s generated release notes (the same defect, found in a second place while closing this out); the working from-checkout path stays |
 | §1.3 | "No DNS, no SMTP" claim was unguarded | [`818c946`](https://github.com/katekruger/campaign-preflight/commit/818c946) | Added `tests/unit/test_rules_no_network.py`, a source-level `not in`-shaped guard across all of `rules/`, proved to bite by mutation before the mutation was reverted |
-| §1.5 (incidental) | `AGENTS.md`'s "1,851 tests" was stale | [`5469630`](https://github.com/katekruger/campaign-preflight/commit/5469630) | Both mentions changed to "the full suite" — deleted rather than re-pinned, so it can't go stale a third time. The other half of §1.5 (the "known coverage gap" text) was **not** in this round's four named items and remains open |
+| §1.5, part one | `AGENTS.md`'s "1,851 tests" was stale | [`5469630`](https://github.com/katekruger/campaign-preflight/commit/5469630) | Both mentions changed to "the full suite" — deleted rather than re-pinned, so it can't go stale a third time. §1.5's other half (the "known coverage gap" text) was deliberately left open at this point — not in that round's four named items |
+| §1.5, part two | `AGENTS.md`'s "known coverage gap" text was stale — `test_mcp_safety.py` already covered the gap it described as open | [`90b51f7`](https://github.com/katekruger/campaign-preflight/commit/90b51f7) | Both the Non-negotiables sentence and the Testing conventions paragraph now say the branches are covered and name the test file, instead of a count or line numbers. Added a one-sentence convention to `AGENTS.md` — point at the file that holds the truth, don't restate a checkable fact — since this was the second time the file had gone stale about itself. Swept the rest of the file: "76 rules" and the CI coverage-floor percentages both still check out, left as-is |
 
 Everything else in this report — the zero-unreached-module result (§2), the
 process-persistence finding (§3), and the fifteen absolute claims that
