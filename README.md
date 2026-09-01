@@ -438,7 +438,7 @@ flowchart LR
     style Guard fill:#4a1f1f,stroke:#c04040,color:#fff
 ```
 
-The context is a frozen Pydantic model, so "a rule never mutates its input" is
+The context is a frozen dataclass, so "a rule never mutates its input" is
 enforced by the type system rather than by review. Provider-specific behaviour
 lives entirely behind the provider interface.
 
