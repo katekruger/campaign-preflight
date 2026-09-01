@@ -18,7 +18,7 @@ three ways: a Python CLI, an MCP server, and a Claude plugin.
 **Naming.** The repository and the plugin share one name: `campaign-preflight`.
 Use it verbatim in prose, headings, install commands, and URLs.
 
-## Non-negotiables — the approval gate above everything else
+## Non-negotiables — this tool cannot write, and must never be able to
 
 This is a pre-send safety tool. Its entire value is that it can be pointed at
 a real campaign and a real API key without any risk of the campaign changing.
