@@ -525,7 +525,14 @@ class, a docstring, and a handful of tests. See
 Report vulnerabilities privately: [SECURITY.md](SECURITY.md). A rule that
 returned `PASS` when the data was missing counts as a security issue.
 
+
 ## See also
+
+Every project here shares one idea: a GTM system should refuse to act on data it cannot verify.
+
+[deliverability-guard](https://github.com/katekruger/deliverability-guard) — the runtime counterpart. This checks a campaign before it sends; that one watches reputation while it is sending and pauses before a domain burns.
+
+[instantly-mcp](https://github.com/katekruger/instantly-mcp) — the same risk-tiered safety model applied to writes rather than reads.
 
 [segment-mcp](https://github.com/katekruger/segment-mcp) — a read-first MCP
 server for Twilio Segment. Same "checked and it's fine ≠ we couldn't check"
